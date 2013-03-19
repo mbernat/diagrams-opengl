@@ -1,0 +1,57 @@
+Name:                diagrams-opengl
+Version:             0.6.1
+Synopsis:            OpenGL backend for diagrams drawing EDSL.
+Homepage:            http://projects.haskell.org/diagrams/
+License:             BSD3
+License-file:        LICENSE
+Extra-source-files:  README.md
+Author:              Daniel Bergey
+Maintainer:          diagrams-discuss@googlegroups.com
+Bug-reports:         http://github.com/bergey/diagrams-opengl/issues
+Stability:           Experimental
+Category:            Graphics
+Build-type:          Simple
+Cabal-version:       >=1.10
+Tested-with:         GHC == 7.4.1
+Description:         This package provides a modular backend for rendering
+                     diagrams created with the diagrams EDSL to screen.
+                     It uses @OpenGL@ to call the platform-independant graphics
+                     API in a type-safe fashion.
+                     .
+                     The package provides the following modules:
+                     .
+                     * "Diagrams.Backend.OpenGL" - not yet implemented
+                     .
+                     * "Diagrams.Backend.SVG" - look at this next.
+                       The general API for the OpenGL backend.
+                     .
+                     Additional documentation can be found in the
+                     README file distributed with the source tarball or
+                     viewable on GitHub:
+                     <https://github.com/bergey/diagrams-opengl/blob/master/README.md>.
+Source-repository head
+  type:     git
+  location: http://github.com/bergey/diagrams-opengl
+
+Library
+  Exposed-modules:     Graphics.Diagrams.OpenGL
+  Other-modules:       Graphics.Rendering.Util 
+  Hs-source-dirs:      src
+  Build-depends:       base          >= 4.3   && < 4.7
+                     , vector-space  >= 0.7   && < 0.9
+                     , colour
+                     , diagrams-core >= 0.6   && < 0.7
+                     , diagrams-lib  >= 0.6   && < 0.7
+                     , monoid-extras >= 0.2   && < 0.3
+                     , cmdargs       >= 0.6   && < 0.11
+                     , OpenGL        >= 2.6   && < 2.7
+                     , vector        >= 0.10  && < 0.11
+                     , containers    >= 0.4   && < 0.5
+                     , GLUT          >= 2.3   && < 2.4
+  if !os(windows)
+    cpp-options: -DCMDLINELOOP
+    Build-depends:     unix >= 2.4 && < 2.7
+
+  Ghc-options:         -Wall
+
+  Default-language:  Haskell2010
