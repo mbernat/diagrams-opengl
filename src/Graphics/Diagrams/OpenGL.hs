@@ -55,13 +55,6 @@ instance Backend OpenGL R2 where
 --   and subsequent renderings should require very little CPU computation
   doRender _ _ = displayPrims
 
-  -- type Result OpenGL R2 = String
-  -- data Options OpenGL R2 = GlOptions
-
-  -- withStyle _ _ _ r = r
-
-  -- doRender _ _ (GlRen ps) = intercalate "\n" $ map show ps
-
 displayPrims :: Render OpenGL R2 -> IO ()
 displayPrims (GlRen ps) =do
     clearColor $= glColor (black :: Colour GLfloat)
