@@ -6,9 +6,6 @@ using the [Haskell programming language][haskell].
 [haskell]: http://www.haskell.org/haskellwiki/Haskell
 
 # TODO
-- write cmdLine wrapper
-- update description in .cabal
-- maintain diagram scale on window resize
 - handle arbitrary polygons
 - handle FillColor and LineColor attributes
 - render Bezier curves correctly
