@@ -50,6 +50,7 @@ Library
                      , vector        >= 0.10  && < 0.11
                      , containers    >= 0.4   && < 0.5
                      , GLUT          >= 2.3   && < 2.4
+                     , semigroups    >= 0.3.4 && < 0.10
   if !os(windows)
     cpp-options: -DCMDLINELOOP
     Build-depends:     unix >= 2.4 && < 2.7
