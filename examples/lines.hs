@@ -21,4 +21,5 @@ p2_ = fromOffsets [v2, v1]
 
 d :: Diagram OpenGL R2
 d = stroke p # lc red <>
-    stroke p2_ # lc blue
+    stroke p2_ # lc blue <>
+    (stroke $ fromOffsets [v2, v2, v1])
