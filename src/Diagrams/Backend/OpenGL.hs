@@ -35,11 +35,6 @@ renderTrail (p0, t) = GlPrim mode black vertices where
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 
-r2f :: (Real r, Fractional f) => r -> f
-r2f x = realToFrac x
-
-r2fPr :: (Real r, Fractional f) => (r,r) -> (f,f)
-r2fPr (a,b) = (r2f a, r2f b)
 
 stylePrim :: forall v. Style v -> GlPrim -> GlPrim
 stylePrim s p = case colorToSRGBA <$> getLineColor <$> getAttr s of

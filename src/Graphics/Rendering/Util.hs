@@ -84,3 +84,12 @@ draw dims mode c pts = do
 
   drawArrays mode 0 ptCount where
     ptCount = fromIntegral $ V.length pts `quot` (fromIntegral dims)
+
+r2f :: (Real r, Fractional f) => r -> f
+r2f x = realToFrac x
+
+r2fPr :: (Real r, Fractional f) => (r,r) -> (f,f)
+r2fPr (a,b) = (r2f a, r2f b)
+
+r2fQuad :: (Real r, Fractional f) => (r,r,r,r) -> (f,f,f,f)
+r2fQuad (a,b,c,d) = (r2f a, r2f b, r2f c, r2f d)

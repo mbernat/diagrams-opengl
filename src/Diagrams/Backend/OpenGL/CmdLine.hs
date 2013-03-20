@@ -6,6 +6,8 @@ import Graphics.UI.GLUT
 import Diagrams.Prelude
 import Diagrams.Backend.OpenGL
 
+import Graphics.Rendering.Util (r2f)
+
 defaultMain :: Diagram OpenGL R2 -> IO ()
 defaultMain d = do
   _ <- getArgsAndInitialize
