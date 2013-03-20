@@ -1,5 +1,6 @@
 module Diagrams.Backend.OpenGL.CmdLine where
 
+import Data.Colour.Names
 import Graphics.UI.GLUT
 
 import Diagrams.Prelude
@@ -9,7 +10,7 @@ defaultMain :: Diagram OpenGL R2 -> IO ()
 defaultMain d = do
   _ <- getArgsAndInitialize
   _ <- createWindow "Diagrams"
-  displayCallback $= (renderDia OpenGL (GlOptions Absolute) d)
+  displayCallback $= (renderDia OpenGL (GlOptions white) d)
   reshapeCallback $= (Just $ preserveAspect d)
   clientState VertexArray $= Enabled
   mainLoop

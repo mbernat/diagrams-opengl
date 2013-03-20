@@ -7,7 +7,7 @@ using the [Haskell programming language][haskell].
 
 # TODO
 - handle arbitrary polygons
-- handle FillColor and LineColor attributes
+- handle FillColor attribute
 - render Bezier curves correctly
 - email diagrams list about Surface design
 - figure out design for embedding 2D diagrams in 3D (on a plane)

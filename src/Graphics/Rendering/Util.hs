@@ -12,7 +12,10 @@ import qualified Data.Vector.Storable as V
 
 import Graphics.Rendering.OpenGL
 
-data GlPrim = GlPrim PrimitiveMode (Colour Float) (V.Vector GLfloat)
+data GlPrim = GlPrim {
+  primMode  :: PrimitiveMode,
+  primColor :: (Colour Double),
+  primVec   :: (V.Vector GLfloat) }
 
 instance Show GlPrim where
   show (GlPrim mode c v) = concat ["GlPrim ", show mode, " ", show c, " ", show v]

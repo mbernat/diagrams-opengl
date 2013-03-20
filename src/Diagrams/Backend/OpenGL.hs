@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Diagrams.Backend.OpenGL where
 
@@ -13,6 +14,7 @@ import qualified Data.Vector.Storable as V
 
 -- Graphics
 import Data.Colour.Names
+import Data.Colour.SRGB
 import Graphics.Rendering.OpenGL hiding (RGB, Linear, Render)
 
 -- From Diagrams
@@ -24,7 +26,7 @@ renderPath (Path trs) = GlRen box $ fmap renderTrail trs where
   box = mconcat . map (boundingBox . snd) $ trs
 
 renderTrail :: (P2, Trail R2) -> GlPrim
-renderTrail (p0, t) = GlPrim mode white vertices where
+renderTrail (p0, t) = GlPrim mode black vertices where
   mode = case isClosed t of
     True  -> LineLoop
     False -> LineStrip
@@ -39,6 +41,11 @@ r2f x = realToFrac x
 r2fPr :: (Real r, Fractional f) => (r,r) -> (f,f)
 r2fPr (a,b) = (r2f a, r2f b)
 
+stylePrim :: forall v. Style v -> GlPrim -> GlPrim
+stylePrim s p = case colorToSRGBA <$> getLineColor <$> getAttr s of
+                     Just (r,g,b,_) -> p { primColor = sRGB r g b }
+                     Nothing        -> p
+
 data OpenGL = OpenGL
             deriving (Show, Typeable)
 
@@ -47,20 +54,17 @@ instance Backend OpenGL R2 where
                         deriving Show
   type Result OpenGL R2 = IO ()
   data Options OpenGL R2 = GlOptions
-                           { size :: SizeSpec2D   -- ^ The requested size.
+                           { bgColor :: Colour Double -- ^ The clear color for the window
                            }
                          deriving Show
 
-  withStyle _ _ _ r = r
+  withStyle _ s _ (GlRen b ps) = GlRen b $ map (stylePrim s) ps
 
 -- | The OpenGL backend expects doRender to be called in a loop.
 --   Ideally, most of the work would be done on the first rendering,
 --   and subsequent renderings should require very little CPU computation
-  doRender _ _ = displayPrims
-
-displayPrims :: Render OpenGL R2 -> IO ()
-displayPrims (GlRen b ps) = do
-    clearColor $= glColor (black :: Colour GLfloat)
+  doRender _ o (GlRen b ps) = do
+    clearColor $= (glColor $ bgColor o)
     clear [ColorBuffer]
     matrixMode $= Modelview 0
     loadIdentity
