@@ -4,11 +4,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Graphics.Diagrams.OpenGL where
+module Diagrams.Backend.OpenGL where
 
 -- General Haskell
 import Prelude
-import Data.List
 import           Data.Typeable
 import qualified Data.Vector.Storable as V
 
@@ -74,3 +73,9 @@ instance Renderable (Trail R2) OpenGL where
 
 instance Renderable (Segment R2) OpenGL where
   render c = render c . flip Trail False . (:[])
+
+dimensions :: QDiagram b R2 m -> (Double, Double)
+dimensions = unr2 . boxExtents . boundingBox
+
+aspectRatio :: QDiagram b R2 m -> Double
+aspectRatio = uncurry (/) . dimensions

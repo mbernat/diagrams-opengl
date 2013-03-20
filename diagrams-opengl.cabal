@@ -20,9 +20,10 @@ Description:         This package provides a modular backend for rendering
                      .
                      The package provides the following modules:
                      .
-                     * "Diagrams.Backend.OpenGL" - not yet implemented
+                     * "Diagrams.Backend.OpenGL.CmdLine" - if you're
+                       just getting started with diagrams, begin here.
                      .
-                     * "Diagrams.Backend.SVG" - look at this next.
+                     * "Diagrams.Backend.OpenGL" - look at this next.
                        The general API for the OpenGL backend.
                      .
                      Additional documentation can be found in the
@@ -34,7 +35,8 @@ Source-repository head
   location: http://github.com/bergey/diagrams-opengl
 
 Library
-  Exposed-modules:     Graphics.Diagrams.OpenGL
+  Exposed-modules:     Diagrams.Backend.OpenGL
+                       Diagrams.Backend.OpenGL.CmdLine
   Other-modules:       Graphics.Rendering.Util 
   Hs-source-dirs:      src
   Build-depends:       base          >= 4.3   && < 4.7

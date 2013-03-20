@@ -11,7 +11,6 @@ import System.IO
 import qualified Data.Vector.Storable as V
 
 import Graphics.Rendering.OpenGL
-import qualified Graphics.UI.GLUT as GLUT hiding (RGB)
 
 data GlPrim = GlPrim PrimitiveMode (Colour Float) (V.Vector GLfloat)
 
@@ -82,11 +81,3 @@ draw dims mode c pts = do
 
   drawArrays mode 0 ptCount where
     ptCount = fromIntegral $ V.length pts `quot` (fromIntegral dims)
-
-initGlut :: IO () -> IO ()
-initGlut display = do
-  _ <- GLUT.getArgsAndInitialize
-  GLUT.createWindow "Diagrams"
-  GLUT.displayCallback $= display
-  clientState VertexArray $= Enabled
-  GLUT.mainLoop
