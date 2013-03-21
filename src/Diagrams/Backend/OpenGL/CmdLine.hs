@@ -12,7 +12,7 @@ defaultMain :: Diagram OpenGL R2 -> IO ()
 defaultMain d = do
   _ <- getArgsAndInitialize
   _ <- createWindow "Diagrams"
-  displayCallback $= (renderDia OpenGL (GlOptions white) d)
+  displayCallback $= (renderDia OpenGL (GlOptions (opaque white)) d)
   reshapeCallback $= (Just $ preserveAspect d)
   clientState VertexArray $= Enabled
   mainLoop

@@ -3,22 +3,28 @@ module Graphics.Rendering.Util where
 -- Wrap OpenGL calls in a slightly more declarative syntax
 -- TODO more consistent naming
 
-import Data.Colour.SRGB
-import Data.Colour.Names () -- instance Show Colour
+import Data.Colour
 import Foreign.Ptr
 import Foreign.Storable
 import System.IO
 import qualified Data.Vector.Storable as V
 
+import Diagrams.Attributes
 import Graphics.Rendering.OpenGL
 
 data GlPrim = GlPrim {
   primMode  :: PrimitiveMode,
-  primColor :: (Colour Double),
+  primColor :: (AlphaColour Double),
   primVec   :: (V.Vector GLfloat) }
 
 instance Show GlPrim where
   show (GlPrim mode c v) = concat ["GlPrim ", show mode, " ", show c, " ", show v]
+
+defaultFillColor :: AlphaColour Double
+defaultFillColor = transparent
+
+defaultLineColor :: AlphaColour Double
+defaultLineColor = opaque black
 
 initProgram :: String -> String -> IO Program
 initProgram v f = do
@@ -64,19 +70,20 @@ bindVao vb = do
 
 -- | Convert a haskell / diagrams color to OpenGL
 --   TODO be more correct about color space
-glColor :: (Real a, Floating a, Fractional b) => Colour a -> Color4 b
-glColor c = Color4 r g b 1 where
-  rgb = toSRGB c
-  r = realToFrac $ channelRed rgb
-  g = realToFrac $ channelGreen rgb
-  b = realToFrac $ channelBlue rgb
+glColor :: (Real a, Floating a, Fractional b) => AlphaColour a -> Color4 b
+glColor c = Color4 r g b a where
+  -- rgb = toSRGB c
+  -- r = realToFrac $ channelRed rgb
+  -- g = realToFrac $ channelGreen rgb
+  -- b = realToFrac $ channelBlue rgb
+  (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
 drawOGL :: NumComponents -> GlPrim -> IO ()
 drawOGL dims (GlPrim mode c v) = draw dims mode c v
 
 -- | The first argument is the number of coördinates given for each vertex
 --   2 and 3 are readily interpreted; 4 indicates homogeneous 3D coördinates
-draw :: (Real c, Floating c) => NumComponents -> PrimitiveMode -> Colour c -> V.Vector GLfloat -> IO ()
+draw :: (Real c, Floating c) => NumComponents -> PrimitiveMode -> AlphaColour c -> V.Vector GLfloat -> IO ()
 draw dims mode c pts = do
   color $ (glColor c :: Color4 GLfloat) -- all vertices same color
   V.unsafeWith pts $ \ptr -> do

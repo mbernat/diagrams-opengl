@@ -13,7 +13,6 @@ import           Data.Typeable
 import qualified Data.Vector.Storable as V
 
 -- Graphics
-import Data.Colour.Names
 import Data.Colour.SRGB
 import Graphics.Rendering.OpenGL hiding (RGB, Linear, Render)
 
@@ -22,27 +21,27 @@ import Diagrams.Prelude hiding (Attribute, close, e, (<>))
 import Graphics.Rendering.Util
 
 renderPath :: Path R2 -> Render OpenGL R2
-renderPath (Path trs) = GlRen box $ fmap renderTrail trs where
-  box = mconcat . map (boundingBox . snd) $ trs
+renderPath p@(Path trs) = GlRen box $ concatMap renderTrail trs where
+  box = boundingBox p
 
-renderTrail :: (P2, Trail R2) -> GlPrim
-renderTrail (p0, t) = GlPrim mode black vertices where
-  mode = case isClosed t of
-    True  -> LineLoop
-    False -> LineStrip
-  vertices = V.fromList $ concatMap flatP2 $ trailVertices p0 t
+renderTrail :: (P2, Trail R2) -> [GlPrim]
+renderTrail (p0, t) = case isClosed t of
+  True  -> [GlPrim LineLoop defaultLineColor vertices, GlPrim TriangleFan defaultFillColor vertices]
+  False -> [GlPrim LineStrip defaultLineColor vertices]
+  where
+    vertices = V.fromList $ concatMap flatP2 $ trailVertices p0 t
 
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 
 styleLine :: forall v. Style v -> GlPrim -> GlPrim
 styleLine s p = case colorToSRGBA <$> getLineColor <$> getAttr s of
-                     Just (r,g,b,_) -> p { primColor = sRGB r g b }
+                     Just (r,g,b,a) -> p { primColor = withOpacity (sRGB r g b) a }
                      Nothing        -> p
 
 styleFill :: forall v. Style v -> GlPrim -> GlPrim
 styleFill s p = case colorToSRGBA <$> getFillColor <$> getAttr s of
-                     Just (r,g,b,_) -> p { primColor = sRGB r g b }
+                     Just (r,g,b,a) -> p { primColor = withOpacity (sRGB r g b) a }
                      Nothing        -> p
 
 stylePrim :: forall v. Style v -> GlPrim -> GlPrim
@@ -65,7 +64,7 @@ instance Backend OpenGL R2 where
                         deriving Show
   type Result OpenGL R2 = IO ()
   data Options OpenGL R2 = GlOptions
-                           { bgColor :: Colour Double -- ^ The clear color for the window
+                           { bgColor :: AlphaColour Double -- ^ The clear color for the window
                            }
                          deriving Show
 
