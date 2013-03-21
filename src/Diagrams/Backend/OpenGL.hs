@@ -35,11 +35,27 @@ renderTrail (p0, t) = GlPrim mode black vertices where
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 
-
-stylePrim :: forall v. Style v -> GlPrim -> GlPrim
-stylePrim s p = case colorToSRGBA <$> getLineColor <$> getAttr s of
+styleLine :: forall v. Style v -> GlPrim -> GlPrim
+styleLine s p = case colorToSRGBA <$> getLineColor <$> getAttr s of
                      Just (r,g,b,_) -> p { primColor = sRGB r g b }
                      Nothing        -> p
+
+styleFill :: forall v. Style v -> GlPrim -> GlPrim
+styleFill s p = case colorToSRGBA <$> getFillColor <$> getAttr s of
+                     Just (r,g,b,_) -> p { primColor = sRGB r g b }
+                     Nothing        -> p
+
+stylePrim :: forall v. Style v -> GlPrim -> GlPrim
+stylePrim s p@(GlPrim Lines _ _) = styleLine s p
+stylePrim s p@(GlPrim LineLoop  _ _) = styleLine s p
+stylePrim s p@(GlPrim LineStrip _ _) = styleLine s p
+stylePrim s p@(GlPrim Triangles _ _) = styleFill s p
+stylePrim s p@(GlPrim TriangleStrip _ _) = styleFill s p
+stylePrim s p@(GlPrim TriangleFan _ _) = styleFill s p
+stylePrim s p@(GlPrim Quads _ _) = styleFill s p
+stylePrim s p@(GlPrim QuadStrip _ _) = styleFill s p
+stylePrim s p@(GlPrim Polygon _ _) = styleFill s p
+stylePrim _ p = p
 
 data OpenGL = OpenGL
             deriving (Show, Typeable)
