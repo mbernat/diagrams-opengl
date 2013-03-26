@@ -26,10 +26,18 @@ renderPath p@(Path trs) = GlRen box $ concatMap renderTrail trs where
 
 renderTrail :: (P2, Trail R2) -> [GlPrim]
 renderTrail (p0, t) = case isClosed t of
-  True  -> [GlPrim LineLoop defaultLineColor vertices, GlPrim TriangleFan defaultFillColor vertices]
+  True  -> [GlPrim LineStrip defaultLineColor vertices,
+            GlPrim TriangleFan defaultFillColor vertices]
   False -> [GlPrim LineStrip defaultLineColor vertices]
   where
-    vertices = V.fromList $ concatMap flatP2 $ trailVertices p0 t
+    vertices = V.fromList $ concatMap flatP2 . concat $
+               zipWith segVertices (trailVertices p0 t)
+                                   (trailSegments t ++ [straight (r2 (0,0))])
+
+segVertices :: P2 -> Segment R2 -> [P2]
+segVertices p (Linear _) = [p]
+segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
+  i = 1/30
 
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
