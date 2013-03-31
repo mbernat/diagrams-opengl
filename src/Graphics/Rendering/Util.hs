@@ -20,12 +20,6 @@ data GlPrim = GlPrim {
 instance Show GlPrim where
   show (GlPrim mode c v) = concat ["GlPrim ", show mode, " ", show c, " ", show v]
 
-defaultFillColor :: AlphaColour Double
-defaultFillColor = transparent
-
-defaultLineColor :: AlphaColour Double
-defaultLineColor = opaque black
-
 initProgram :: String -> String -> IO Program
 initProgram v f = do
   [vSh] <-  genObjectNames 1
