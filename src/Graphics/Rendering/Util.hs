@@ -20,12 +20,6 @@ data GlPrim = GlPrim {
 instance Show GlPrim where
   show (GlPrim mode c v) = concat ["GlPrim ", show mode, " ", show c, " ", show v]
 
-defaultFillColor :: AlphaColour Double
-defaultFillColor = transparent
-
-defaultLineColor :: AlphaColour Double
-defaultLineColor = opaque black
-
 initProgram :: String -> String -> IO Program
 initProgram v f = do
   [vSh] <-  genObjectNames 1
@@ -76,7 +70,7 @@ glColor c = Color4 r g b a where
   -- r = realToFrac $ channelRed rgb
   -- g = realToFrac $ channelGreen rgb
   -- b = realToFrac $ channelBlue rgb
-  (r,g,b,a) = r2fQuad $ colorToSRGBA c
+  (r,g,b,a) = r2fQuad $ colorToRGBA c
 
 drawOGL :: NumComponents -> GlPrim -> IO ()
 drawOGL dims (GlPrim mode c v) = draw dims mode c v
