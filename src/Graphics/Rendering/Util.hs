@@ -76,7 +76,7 @@ glColor c = Color4 r g b a where
   -- r = realToFrac $ channelRed rgb
   -- g = realToFrac $ channelGreen rgb
   -- b = realToFrac $ channelBlue rgb
-  (r,g,b,a) = r2fQuad $ colorToSRGBA c
+  (r,g,b,a) = r2fQuad $ colorToRGBA c
 
 drawOGL :: NumComponents -> GlPrim -> IO ()
 drawOGL dims (GlPrim mode c v) = draw dims mode c v
