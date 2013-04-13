@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Diagrams.Backend.OpenGL where
+module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..) ) where
 
 -- General Haskell
 import Data.Semigroup
