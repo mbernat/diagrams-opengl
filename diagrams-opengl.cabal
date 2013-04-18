@@ -48,7 +48,7 @@ Library
                      , cmdargs       >= 0.6   && < 0.11
                      , OpenGL        >= 2.6   && < 2.9
                      , vector        >= 0.10  && < 0.11
-                     , containers    >= 0.4   && < 0.5
+                     , containers    >= 0.4   && < 0.6
                      , GLUT          >= 2.3   && < 2.5
                      , semigroups    >= 0.3.4 && < 0.10
   if !os(windows)
