@@ -42,15 +42,16 @@ Library
   Build-depends:       base          >= 4.3   && < 4.7
                      , vector-space  >= 0.7   && < 0.9
                      , colour
-                     , diagrams-core >= 0.6   && < 0.7
+                     , diagrams-core >= 0.6.1   && < 0.7
                      , diagrams-lib  >= 0.6   && < 0.7
                      , monoid-extras >= 0.2   && < 0.3
                      , cmdargs       >= 0.6   && < 0.11
-                     , OpenGL        >= 2.6   && < 2.7
+                     , OpenGL        >= 2.6   && < 2.9
                      , vector        >= 0.10  && < 0.11
-                     , containers    >= 0.4   && < 0.5
-                     , GLUT          >= 2.3   && < 2.4
+                     , containers    >= 0.4   && < 0.6
+                     , GLUT          >= 2.3   && < 2.5
                      , semigroups    >= 0.3.4 && < 0.10
+                     , mtl           >= 1     && < 2.2
   if !os(windows)
     cpp-options: -DCMDLINELOOP
     Build-depends:     unix >= 2.4 && < 2.7

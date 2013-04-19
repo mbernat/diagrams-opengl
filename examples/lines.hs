@@ -4,7 +4,6 @@ import Diagrams.Backend.OpenGL.CmdLine
 
 main :: IO ()
 main = do
-  putStrLn $ show $ renderPath p
   defaultMain d
 
 v1 :: R2
@@ -22,4 +21,5 @@ p2_ = fromOffsets [v2, v1]
 d :: Diagram OpenGL R2
 d = stroke p # lc red <>
     stroke p2_ # lc blue <>
-    (stroke $ fromOffsets [v2, v2, v1])
+    (stroke $ fromOffsets [v2, v2, v1]) <>
+    stroke (close p2_) # lc green # translate (v1+v2)
