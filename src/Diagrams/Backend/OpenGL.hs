@@ -16,12 +16,11 @@ import qualified Data.Vector.Storable as V
 import Data.Tuple
 
 -- Graphics
-import Data.Colour.SRGB
-import qualified Graphics.Rendering.OpenGL as GL
-import Graphics.Rendering.OpenGL (($=))
+import Data.Colour.SRGB as C
+import Graphics.Rendering.OpenGL as GL
 
 -- From Diagrams
-import Diagrams.Prelude hiding (Attribute, close, e, (<>))
+import Diagrams.Prelude as D hiding (Attribute, close, e, (<>))
 import Diagrams.TwoD.Arc
 import Diagrams.TwoD.Path
 import Graphics.Rendering.Util
@@ -86,7 +85,7 @@ calcCap lwf lcap (p0, p1) =
     LineCapButt   -> mempty
     LineCapRound  ->
       trlVertices (p1 .+^ c, arcT (Rad $ -tau/4) (Rad $ tau/4)
-                             # scale (r2f lwf/2) # rotate angle)
+                             # D.scale (r2f lwf/2) # D.rotate angle)
     LineCapSquare -> [ p1 .+^ c
                      , p1 .-^ c
                      , p1 .+^ (norm - c)
@@ -94,7 +93,7 @@ calcCap lwf lcap (p0, p1) =
                      ]
  where vec   = p1 .-. p0
        norm  = normalized vec ^* (lwf/2)
-       c = rotate (-tau/4 :: Rad) norm
+       c = D.rotate (-tau/4 :: Rad) norm
        angle :: Rad
        angle = direction vec
 
@@ -117,9 +116,9 @@ calcJoin lj lwf (p0, p1, p3) =
                        then  1
                        else -1
        v1 :: R2
-       v1          = rotate (side * (-tau/4)::Rad) norm1
+       v1          = D.rotate (side * (-tau/4)::Rad) norm1
        v2 :: R2
-       v2          = rotate (side * (-tau/4)::Rad) norm2
+       v2          = D.rotate (side * (-tau/4)::Rad) norm2
        bevel       = [ p1 .+^ v1
                      , p1 .+^ v2
                      , p1
@@ -127,7 +126,7 @@ calcJoin lj lwf (p0, p1, p3) =
        spikeAngle  = (direction v1 - direction v2) / 2
        spikeLength = (lwf/2) / cos (getRad spikeAngle)
        v3 :: R2
-       v3          = rotate (direction v1 - spikeAngle) unitX ^* spikeLength
+       v3          = D.rotate (direction v1 - spikeAngle) unitX ^* spikeLength
        spike       = [ p1 .+^ v1
                      , p1 .+^ v3
                      , p1 .+^ v2
@@ -149,7 +148,7 @@ calcLine lwf (p0, p1) =
   ]
  where vec   = p1 .-. p0
        norm  = normalized vec ^* (lwf/2)
-       c = rotate (-tau/4 :: Rad) norm
+       c = D.rotate (-tau/4 :: Rad) norm
 
 renderPath :: Path R2 -> Render OpenGL R2
 renderPath p@(Path trs) =
@@ -174,11 +173,11 @@ renderPath p@(Path trs) =
        linePolygons darr _lw lcap lj = concatMap (calcLines darr _lw lcap lj) trails
 
        clippedPolygons vis [] = vis
-       clippedPolygons vis clip = concatMap (tessRegion GL.TessWindingAbsGeqTwo . (: clip)) vis
+       clippedPolygons vis clip = concatMap (tessRegion TessWindingAbsGeqTwo . (: clip)) vis
        box = boundingBox p
 
 renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
-renderPolygon c o ps = GlPrim GL.TriangleFan (dissolve o c) vertices
+renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) vertices
   where vertices = V.fromList $ concatMap flatP2 ps
 
 trlVertices :: (P2, Trail R2) -> [P2]
@@ -191,20 +190,20 @@ trlVertices (p0, t) =
         lp = last $ trailVertices p0 t
 
 segVertices :: P2 -> Segment R2 -> [P2]
-segVertices p (Linear _) = [p]
+segVertices p (D.Linear _) = [p]
 segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
   i = 1/30
 
-tessRegion :: GL.TessWinding -> [[P2]] -> [[P2]]
+tessRegion :: TessWinding -> [[P2]] -> [[P2]]
 tessRegion fr trs = renderTriangulation $ unsafePerformIO $
-  GL.triangulate fr 0.0001 (GL.Normal3 0 0 0)
+  GL.triangulate fr 0.0001 (Normal3 0 0 0)
     (\_ _ -> 0) $
-    GL.ComplexPolygon [GL.ComplexContour (map createVertex trail) | trail <- trs]
+    ComplexPolygon [ComplexContour (map createVertex trail) | trail <- trs]
  where createVertex (unp2 -> (x,y)) =
-          GL.AnnotatedVertex (GL.Vertex3 (r2f x) (r2f y) 0) (0::Int)
-       renderTriangulation (GL.Triangulation ts) = map renderTriangle ts
-       renderTriangle (GL.Triangle a b c) = map deAnnotate [a, b, c]
-       deAnnotate (GL.AnnotatedVertex (GL.Vertex3 x y _) _) = p2 (r2f x, r2f y)
+          AnnotatedVertex (Vertex3 (r2f x) (r2f y) 0) (0::Int)
+       renderTriangulation (Triangulation ts) = map renderTriangle ts
+       renderTriangle (Triangle a b c) = map deAnnotate [a, b, c]
+       deAnnotate (AnnotatedVertex (Vertex3 x y _) _) = p2 (r2f x, r2f y)
 
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
@@ -219,7 +218,7 @@ data GLRenderState =
                , currentLineWidth  :: Double
                , currentLineCap    :: LineCap
                , currentLineJoin   :: LineJoin
-               , currentFillRule   :: GL.TessWinding
+               , currentFillRule   :: TessWinding
                , currentDashArray  :: [Double]
                , currentDashOffset :: Double
                , currentClip       :: [[P2]]
@@ -233,7 +232,7 @@ initialGLRenderState = GLRenderState
                             0.01
                             LineCapButt
                             LineJoinMiter
-                            GL.TessWindingNonzero
+                            TessWindingNonzero
                             []
                             0
                             []
@@ -266,17 +265,17 @@ instance Backend OpenGL R2 where
 --   Ideally, most of the work would be done on the first rendering,
 --   and subsequent renderings should require very little CPU computation
   doRender _ o (GlRen b p) = do
-    GL.clearColor $= glColor (bgColor o)
-    GL.clear [GL.ColorBuffer]
-    GL.matrixMode $= GL.Modelview 0
-    GL.loadIdentity
+    clearColor $= glColor (bgColor o)
+    clear [ColorBuffer]
+    matrixMode $= Modelview 0
+    loadIdentity
     inclusiveOrtho b
     let ps = evalState p initialGLRenderState
     -- GL.polygonMode $= (GL.Line, GL.Line)
-    GL.blend $= GL.Enabled
-    GL.blendFunc $= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
+    GL.blend $= Enabled
+    blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
     mapM_ (drawOGL 2) ps
-    GL.flush
+    flush
 
 instance Monoid (Render OpenGL R2) where
   mempty = GlRen emptyBox $ return mempty
@@ -299,7 +298,7 @@ aspectRatio :: QDiagram b R2 m -> Double
 aspectRatio = uncurry (/) . dimensions
 
 inclusiveOrtho :: BoundingBox R2 -> IO ()
-inclusiveOrtho b = GL.ortho x0 x1 y0 y1 z0 z1 where
+inclusiveOrtho b = ortho x0 x1 y0 y1 z0 z1 where
   defaultBounds = (p2 (-1,-1), p2 (1,1))
   ext      = unr2 $ boxExtents b
   (ll, ur) = maybe defaultBounds id $ getCorners b
@@ -357,8 +356,8 @@ changeLineJoin s =
 changeFillRule :: Style v -> GLRenderM ()
 changeFillRule s =
   case fr of
-    Just Winding -> modify $ \st -> st{currentFillRule = GL.TessWindingNonzero}
-    Just EvenOdd -> modify $ \st -> st{currentFillRule = GL.TessWindingOdd}
+    Just Winding -> modify $ \st -> st{currentFillRule = TessWindingNonzero}
+    Just EvenOdd -> modify $ \st -> st{currentFillRule = TessWindingOdd}
     Nothing      -> return ()
  where fr = getFillRule <$> getAttr s
 
@@ -378,7 +377,7 @@ changeClip s =
   case clip of
     Just (Path trs:_) ->
       modify $ \st ->
-      st{ currentClip = tessRegion GL.TessWindingNonzero $
+      st{ currentClip = tessRegion TessWindingNonzero $
                         map trlVertices trs
         }
     Just _       -> return ()
