@@ -37,14 +37,14 @@ calcLines :: [Double]  -- ^ Dashing pattern, first element of Dashing type
              -> [[P2]] -- ^ Each inner list is the outline of a (convex) polygon
 calcLines darr lwf lcap lj ps@(_:_:_) =
   case darr of
-    []    -> map (calcLine lwf) lines <>
+    []    -> map (calcLine lwf) strokedLines <>
              map (calcJoin lj lwf) joins
-    (_:_) -> calcDashedLines (cycle darr) False lwf lcap lj lines
+    (_:_) -> calcDashedLines (cycle darr) False lwf lcap lj strokedLines
   <> if dist < 0.0001
      then [calcJoin lj lwf (pup, fp, sp)]
-     else [calcCap lwf lcap $ swap $ head lines] <>
-          [calcCap lwf lcap $ last lines]
- where lines = zip  ps (tail ps)
+     else [calcCap lwf lcap $ swap $ head strokedLines] <>
+          [calcCap lwf lcap $ last strokedLines]
+ where strokedLines = zip  ps (tail ps)
        joins = zip3 ps (tail ps) (tail $ tail ps)
        pup   = ps !! (length ps - 2)
        lp    = last ps
@@ -63,18 +63,18 @@ calcDashedLines :: [Double] -- ^ Dashing pattern, first element of Dashing type
 calcDashedLines (d:ds) hole lwf lcap lj ((p0, p1):ps) =
   if hole
   then if len >= d
-       then calcDashedLines ds           (not hole) lwf lcap lj ((p1 .+^ vec, p2):ps)
+       then calcDashedLines ds           (not hole) lwf lcap lj ((p0 .+^ vec, p1):ps)
        else calcDashedLines (d - len:ds) (    hole) lwf lcap lj ps
   else if len >= d
-       then calcLine lwf (p1, p1 .+^ vec):
-            calcDashedLines ds           (not hole) lwf lcap lj ((p1 .+^ vec, p2):ps)
-       else calcLine lwf (p1, p2):
+       then calcLine lwf (p0, p0 .+^ vec):
+            calcDashedLines ds           (not hole) lwf lcap lj ((p0 .+^ vec, p1):ps)
+       else calcLine lwf (p0, p1):
             case ps of
-              ((_, p3):_) -> calcJoin lj lwf (p1, p2, p3):
+              ((_, p3):_) -> calcJoin lj lwf (p0, p1, p3):
                              calcDashedLines (d - len:ds) hole lwf lcap lj ps
               []     -> mempty
- where len = magnitude (p2 .-. p1)
-       vec = normalized (p2 .-. p1) ^* d
+ where len = magnitude (p1 .-. p0)
+       vec = normalized (p1 .-. p0) ^* d
 calcDashedLines _ _ _ _ _ _ = mempty
 
 calcCap :: Double -- ^ Line Width
@@ -85,31 +85,34 @@ calcCap lwf lcap (p0, p1) =
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
-      trlVertices (p2 .+^ c, arcT (Rad $ -tau/4) (Rad $ tau/4)
-                             # scale (realToFrac lwf/2) # rotate angle)
-    LineCapSquare -> [ p2 .+^ c
-                     , p2 .-^ c
-                     , p2 .+^ (norm - c)
-                     , p2 .+^ (norm + c)
+      trlVertices (p1 .+^ c, arcT (Rad $ -tau/4) (Rad $ tau/4)
+                             # scale (r2f lwf/2) # rotate angle)
+    LineCapSquare -> [ p1 .+^ c
+                     , p1 .-^ c
+                     , p1 .+^ (norm - c)
+                     , p1 .+^ (norm + c)
                      ]
- where vec   = p2 .-. p1
+ where vec   = p1 .-. p0
        norm  = normalized vec ^* (lwf/2)
        c = rotate (-tau/4 :: Rad) norm
        angle :: Rad
        angle = direction vec
 
-calcJoin :: LineJoin -> Double -> (P2, P2, P2) -> [P2]
-calcJoin lj lwf (p1, p2, p3) =
+calcJoin :: LineJoin
+            -> Double -- ^ Line Width
+            -> (P2, P2, P2) -- ^ Two line segments meeting at the middle point
+            -> [P2]
+calcJoin lj lwf (p0, p1, p3) =
   case lj of
     LineJoinMiter -> if abs spikeLength > 10 * lwf
                        then bevel
                        else spike
-    LineJoinRound -> (p2:) $ case side of
-      1 -> trlVertices (p2 .+^ v1, arc' (lwf/2) (direction v1 :: Rad) (direction v2))
-      _ -> trlVertices (p2 .+^ v2, arc' (lwf/2) (direction v2 :: Rad) (direction v1))
+    LineJoinRound -> (p1:) $ case side of
+      1 -> trlVertices (p1 .+^ v1, arc' (lwf/2) (direction v1 :: Rad) (direction v2))
+      _ -> trlVertices (p1 .+^ v2, arc' (lwf/2) (direction v2 :: Rad) (direction v1))
     LineJoinBevel -> bevel
- where norm1       = normalized (p2 .-. p1) ^* (lwf/2)
-       norm2       = normalized (p3 .-. p2) ^* (lwf/2)
+ where norm1       = normalized (p1 .-. p0) ^* (lwf/2)
+       norm2       = normalized (p3 .-. p1) ^* (lwf/2)
        side        = if detV norm1 norm2 > 0
                        then  1
                        else -1
@@ -117,18 +120,18 @@ calcJoin lj lwf (p1, p2, p3) =
        v1          = rotate (side * (-tau/4)::Rad) norm1
        v2 :: R2
        v2          = rotate (side * (-tau/4)::Rad) norm2
-       bevel       = [ p2 .+^ v1
-                     , p2 .+^ v2
-                     , p2
+       bevel       = [ p1 .+^ v1
+                     , p1 .+^ v2
+                     , p1
                      ]
        spikeAngle  = (direction v1 - direction v2) / 2
        spikeLength = (lwf/2) / cos (getRad spikeAngle)
        v3 :: R2
        v3          = rotate (direction v1 - spikeAngle) unitX ^* spikeLength
-       spike       = [ p2 .+^ v1
-                     , p2 .+^ v3
-                     , p2 .+^ v2
-                     , p2
+       spike       = [ p1 .+^ v1
+                     , p1 .+^ v3
+                     , p1 .+^ v2
+                     , p1
                      ]
        -- | The determinant of two vectors.
        detV :: R2 -> R2 -> Double
@@ -136,40 +139,39 @@ calcJoin lj lwf (p1, p2, p3) =
 
 
 calcLine :: Double -> (P2, P2) -> [P2]
-calcLine lwf (p1, p2) =
-  [ p1 .-^ c
-  , p1
+calcLine lwf (p0, p1) =
+  [ p0 .-^ c
+  , p0
+  , p0 .+^ c
   , p1 .+^ c
-  , p2 .+^ c
-  , p2
-  , p2 .-^ c
+  , p1
+  , p1 .-^ c
   ]
- where vec   = p2 .-. p1
+ where vec   = p1 .-. p0
        norm  = normalized vec ^* (lwf/2)
        c = rotate (-tau/4 :: Rad) norm
 
 renderPath :: Path R2 -> Render OpenGL R2
 renderPath p@(Path trs) =
   GlRen box $ do
-    fc <- gets currentFillColor
-    lc <- gets currentLineColor
+    _fc <- gets currentFillColor
+    _lc <- gets currentLineColor
     o <- gets currentOpacity
     fr <- gets currentFillRule
-    lw <- gets currentLineWidth
+    _lw <- gets currentLineWidth
     lcap <- gets currentLineCap
     lj <- gets currentLineJoin
     darr <- gets currentDashArray
-    doff <- gets currentDashOffset
     clip <- gets currentClip
     put initialGLRenderState
     return $
-      map (renderPolygon fc o) (clippedPolygons (simplePolygons fr) clip) <>
-      map (renderPolygon lc o) (clippedPolygons (linePolygons darr lw lcap lj) clip)
+      map (renderPolygon _fc o) (clippedPolygons (simplePolygons fr) clip) <>
+      map (renderPolygon _lc o) (clippedPolygons (linePolygons darr _lw lcap lj) clip)
  where trails                  = map trlVertices trs
        simplePolygons fr       = tessRegion fr trails
 
        linePolygons :: [Double] -> Double -> LineCap -> LineJoin -> [[P2]]
-       linePolygons darr lw lcap lj = concatMap (calcLines darr lw lcap lj) trails
+       linePolygons darr _lw lcap lj = concatMap (calcLines darr _lw lcap lj) trails
 
        clippedPolygons vis [] = vis
        clippedPolygons vis clip = concatMap (tessRegion GL.TessWindingAbsGeqTwo . (: clip)) vis
@@ -287,10 +289,7 @@ instance Backend OpenGL R2 where
 instance Monoid (Render OpenGL R2) where
   mempty = GlRen emptyBox $ return mempty
   (GlRen b1 p01) `mappend` (GlRen b2 p02) =
-    GlRen (b1 <> b2) $ do
-      p1 <- p01
-      p2 <- p02
-      return $ p1 <> p2
+    GlRen (b1 <> b2) $ liftA2 (<>) p01 p02
 
 instance Renderable (Path R2) OpenGL where
   render _ = renderPath
@@ -325,7 +324,7 @@ changeLineColor s =
     Just (r, g, b, a) ->
       modify $ \st -> st{currentLineColor = withOpacity (sRGB r g b) a}
     Nothing           -> return ()
- where lcol = colorToRGBA <$> getLineColor <$> getAttr s
+ where lcol = colorToSRGBA <$> getLineColor <$> getAttr s
 
 changeFillColor :: Style v -> GLRenderM ()
 changeFillColor s =
@@ -333,7 +332,7 @@ changeFillColor s =
     Just (r, g, b, a) ->
       modify $ \st -> st{currentFillColor = withOpacity (sRGB r g b) a}
     Nothing           -> return ()
- where fcol = colorToRGBA <$> getFillColor <$> getAttr s
+ where fcol = colorToSRGBA <$> getFillColor <$> getAttr s
 
 changeOpacity :: Style v -> GLRenderM ()
 changeOpacity s =
