@@ -1,11 +1,9 @@
-import Diagrams.Prelude hiding (doRender)
-import Diagrams.Backend.OpenGL
-import Diagrams.Backend.OpenGL.CmdLine
+import Diagrams.Prelude
+import Diagrams.Backend.OpenGL.TwoD
+import Diagrams.Backend.OpenGL.TwoD.CmdLine
 
 main :: IO ()
-main = do
-  putStrLn $ show $ renderPath p
-  defaultMain d
+main = defaultMain d
 
 v1 :: R2
 v1 = r2 (0,1)

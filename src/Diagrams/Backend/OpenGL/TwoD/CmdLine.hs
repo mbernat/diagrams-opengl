@@ -1,13 +1,13 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Diagrams.Backend.OpenGL.CmdLine where
+module Diagrams.Backend.OpenGL.TwoD.CmdLine where
 
 import Data.Colour.Names
 import Data.Monoid.Split
 import Graphics.UI.GLUT
 
 import Diagrams.Prelude
-import Diagrams.Backend.OpenGL
+import Diagrams.Backend.OpenGL.TwoD
 
 import Graphics.Rendering.Util (r2f)
 

@@ -35,8 +35,8 @@ Source-repository head
   location: http://github.com/bergey/diagrams-opengl
 
 Library
-  Exposed-modules:     Diagrams.Backend.OpenGL
-                       Diagrams.Backend.OpenGL.CmdLine
+  Exposed-modules:     Diagrams.Backend.OpenGL.TwoD
+                       Diagrams.Backend.OpenGL.TwoD.CmdLine
   Other-modules:       Graphics.Rendering.Util 
   Hs-source-dirs:      src
   Build-depends:       base          >= 4.3   && < 4.7

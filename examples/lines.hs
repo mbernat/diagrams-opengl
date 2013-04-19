@@ -1,6 +1,6 @@
 import Diagrams.Prelude hiding (doRender)
-import Diagrams.Backend.OpenGL
-import Diagrams.Backend.OpenGL.CmdLine
+import Diagrams.Backend.OpenGL.TwoD
+import Diagrams.Backend.OpenGL.TwoD.CmdLine
 
 main :: IO ()
 main = do

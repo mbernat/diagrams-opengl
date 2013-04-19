@@ -1,6 +1,6 @@
 import Diagrams.Prelude
-import Diagrams.Backend.OpenGL
-import Diagrams.Backend.OpenGL.CmdLine
+import Diagrams.Backend.OpenGL.TwoD
+import Diagrams.Backend.OpenGL.TwoD.CmdLine
 import Diagrams.Core.Points
 
 loopyStar :: Diagram OpenGL R2
