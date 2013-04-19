@@ -26,9 +26,15 @@ import Diagrams.TwoD.Arc
 import Diagrams.TwoD.Path
 import Graphics.Rendering.Util
 
-{- Points calculation-}
 
-calcLines :: [Double] -> Double -> LineCap -> LineJoin -> [P2] -> [[P2]]
+{- calculate drawn outlines of styled lines -}
+
+calcLines :: [Double]  -- ^ Dashing pattern, first element of Dashing type
+             -> Double -- ^ Line Width
+             -> LineCap
+             -> LineJoin
+             -> [P2]  -- ^ Points from a single Trail, with curves already linearized
+             -> [[P2]] -- ^ Each inner list is the outline of a (convex) polygon
 calcLines darr lwf lcap lj ps@(_:_:_) =
   case darr of
     []    -> map (calcLine lwf) lines <>
@@ -47,8 +53,14 @@ calcLines darr lwf lcap lj ps@(_:_:_) =
        dist = magnitude $ lp .-. fp
 calcLines _ _ _ _ _ = mempty
 
-calcDashedLines :: [Double] -> Bool -> Double -> LineCap -> LineJoin -> [(P2, P2)] -> [[P2]]
-calcDashedLines (d:ds) hole lwf lcap lj ((p1, p2):ps) =
+calcDashedLines :: [Double] -- ^ Dashing pattern, first element of Dashing type
+                   -> Bool -- ^ Currently in a gap between dashes
+                   -> Double -- ^ Line Width
+                   -> LineCap
+                   -> LineJoin
+                   -> [(P2, P2)] -- ^ Line segments, defined by their endpoints
+                   -> [[P2]] -- ^ Each inner list is the outline of a (convex) polygon
+calcDashedLines (d:ds) hole lwf lcap lj ((p0, p1):ps) =
   if hole
   then if len >= d
        then calcDashedLines ds           (not hole) lwf lcap lj ((p1 .+^ vec, p2):ps)
@@ -65,8 +77,11 @@ calcDashedLines (d:ds) hole lwf lcap lj ((p1, p2):ps) =
        vec = normalized (p2 .-. p1) ^* d
 calcDashedLines _ _ _ _ _ _ = mempty
 
-calcCap :: Double -> LineCap -> (P2, P2) -> [P2]
-calcCap lwf lcap (p1, p2) =
+calcCap :: Double -- ^ Line Width
+           -> LineCap
+           -> (P2, P2) -- ^ Endpoints of final line segment
+           -> [P2] -- ^ The outline of the line's end cap
+calcCap lwf lcap (p0, p1) =
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
