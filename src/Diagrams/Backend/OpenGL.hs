@@ -196,23 +196,15 @@ segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
   i = 1/30
 
 tessRegion :: GL.TessWinding -> [[P2]] -> [[P2]]
-tessRegion fr ps = renderTriangulation $ unsafePerformIO $
+tessRegion fr trs = renderTriangulation $ unsafePerformIO $
   GL.triangulate fr 0.0001 (GL.Normal3 0 0 0)
-    (\_ (GL.WeightedProperties (_,p) _ _ _) -> p) $
-    GL.ComplexPolygon [GL.ComplexContour (map createVertex p) | p <- ps]
+    (\_ _ -> 0) $
+    GL.ComplexPolygon [GL.ComplexContour (map createVertex trail) | trail <- trs]
  where createVertex (unp2 -> (x,y)) =
-          GL.AnnotatedVertex (GL.Vertex3 (realToFrac x) (realToFrac y) 0)
-                            (0::Int)
-       renderTriangulation (GL.Triangulation ts) =
-         map renderTriangle ts
-       renderTriangle (GL.Triangle
-                       (GL.AnnotatedVertex (GL.Vertex3 x0 y0 _) _)
-                       (GL.AnnotatedVertex (GL.Vertex3 x1 y1 _) _)
-                       (GL.AnnotatedVertex (GL.Vertex3 x2 y2 _) _)
-                      ) = [ p2 (realToFrac x0, realToFrac y0)
-                          , p2 (realToFrac x1, realToFrac y1)
-                          , p2 (realToFrac x2, realToFrac y2)
-                          ]
+          GL.AnnotatedVertex (GL.Vertex3 (r2f x) (r2f y) 0) (0::Int)
+       renderTriangulation (GL.Triangulation ts) = map renderTriangle ts
+       renderTriangle (GL.Triangle a b c) = map deAnnotate [a, b, c]
+       deAnnotate (GL.AnnotatedVertex (GL.Vertex3 x y _) _) = p2 (r2f x, r2f y)
 
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
