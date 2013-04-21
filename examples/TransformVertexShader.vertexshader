@@ -1,0 +1,19 @@
+#version 330 core
+
+layout(location = 0) in vec3 vert;
+layout(location = 1) in vec2 vertUV;
+
+uniform mat4 VP;
+uniform mat4 M;
+
+// Output data ; will be interpolated for each fragment.
+out vec2 UV;
+out float pos;
+
+void main()
+{
+    gl_Position = VP * M * vec4(vert,1.0);
+    // UV of the vertex. No special space for this one.
+    UV = vertUV;
+    pos = gl_Position.z + 400;
+}
