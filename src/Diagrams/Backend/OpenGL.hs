@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..) ) where
+module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), OpenGLTexture(..), Options(..), preserveAspectD, defaultOptions) where
 
 -- General  Haskell
 import Data.Semigroup
@@ -14,6 +14,7 @@ import System.IO.Unsafe
 import           Data.Typeable
 import qualified Data.Vector.Storable as V
 import Data.Tuple
+import Foreign.Ptr (nullPtr)
 
 -- Graphics
 import Data.Colour.SRGB as C
@@ -150,9 +151,9 @@ calcLine lwf (p0, p1) =
        norm  = normalized vec ^* (lwf/2)
        c = D.rotate (-tau/4 :: Rad) norm
 
-renderPath :: Path R2 -> Render OpenGL R2
+renderPath :: Path R2 -> (BoundingBox R2, GLRenderM [GlPrim])
 renderPath p@(Path trs) =
-  GlRen box $ do
+  (,) box $ do
     _fc <- gets currentFillColor
     _lc <- gets currentLineColor
     o <- gets currentOpacity
@@ -211,6 +212,9 @@ flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 data OpenGL = OpenGL
             deriving (Show, Typeable)
 
+data OpenGLTexture = OpenGLTexture
+            deriving (Show, Typeable)
+
 data GLRenderState =
   GLRenderState{ currentLineColor  :: AlphaColour Double
                , currentFillColor  :: AlphaColour Double
@@ -265,17 +269,68 @@ instance Backend OpenGL R2 where
 --   Ideally, most of the work would be done on the first rendering,
 --   and subsequent renderings should require very little CPU computation
   doRender _ o (GlRen b p) = do
+    -- Save OpenGL state before setting new values
+
+    oldClearColor <- GL.get clearColor
     clearColor $= glColor (bgColor o)
-    clear [ColorBuffer]
-    matrixMode $= Modelview 0
-    loadIdentity
-    inclusiveOrtho b
-    let ps = evalState p initialGLRenderState
+
+    -- oldPolygonMode <- GL.get GL.polygonMode
     -- GL.polygonMode $= (GL.Line, GL.Line)
+
+    oldBlend <- GL.get GL.blend
     GL.blend $= Enabled
+
+    oldBlendFunc <- GL.get blendFunc
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    mapM_ (drawOGL 2) ps
+
+    oldClientStateVertexArray <- GL.get $ clientState VertexArray
+    clientState VertexArray $= Enabled
+
+    oldTextureTexture2D <- GL.get $ texture Texture2D
+    texture Texture2D $= Disabled
+
+    oldCurrentProgram <- GL.get currentProgram
+    currentProgram $= Nothing
+
+    oldMatrixMode <- GL.get matrixMode
+    matrixMode $= Modelview 0
+
+    oldArrayPointerVertexArray <- GL.get $ arrayPointer VertexArray
+
+    oldBindVertexArrayObject <- GL.get $ bindVertexArrayObject
+    bindVertexArrayObject $= Nothing
+
+    oldBindBuffer <- GL.get $ bindBuffer ArrayBuffer
+    bindBuffer ArrayBuffer $= Nothing
+
+    oldVertexAttribArrayAttribLocation0 <- GL.get $ vertexAttribArray (AttribLocation 0)
+    vertexAttribArray (AttribLocation 0) $= Disabled
+
+    oldVertexAttribArrayAttribLocation1 <- GL.get $ vertexAttribArray (AttribLocation 1)
+    vertexAttribArray (AttribLocation 1) $= Disabled
+
+    clear [ColorBuffer]
+    preservingMatrix $ do
+      loadIdentity
+      inclusiveOrtho b
+      let ps = evalState p initialGLRenderState
+      mapM_ (drawOGL 2) ps
     flush
+
+    -- Restore OpenGL state
+    clearColor $= oldClearColor
+    -- GL.polygonMode $= oldPolygonMode
+    GL.blend $= oldBlend
+    blendFunc $= oldBlendFunc
+    clientState VertexArray $= oldClientStateVertexArray
+    texture Texture2D $= oldTextureTexture2D
+    currentProgram $= oldCurrentProgram
+    matrixMode $= oldMatrixMode
+    arrayPointer VertexArray $= oldArrayPointerVertexArray
+    bindVertexArrayObject $= oldBindVertexArrayObject
+    bindBuffer ArrayBuffer $= oldBindBuffer
+    vertexAttribArray (AttribLocation 0) $= oldVertexAttribArrayAttribLocation0
+    vertexAttribArray (AttribLocation 1) $= oldVertexAttribArrayAttribLocation1
 
 instance Monoid (Render OpenGL R2) where
   mempty = GlRen emptyBox $ return mempty
@@ -283,12 +338,82 @@ instance Monoid (Render OpenGL R2) where
     GlRen (b1 <> b2) $ liftA2 (<>) p01 p02
 
 instance Renderable (Path R2) OpenGL where
-  render _ = renderPath
+  render _ = uncurry GlRen . renderPath
 
 instance Renderable (Trail R2) OpenGL where
   render c t = render c $ Path [(p2 (0,0), t)]
 
 instance Renderable (Segment R2) OpenGL where
+  render c = render c . flip Trail False . (:[])
+
+
+-- | Separate instance for rendering to texture
+instance Backend OpenGLTexture R2 where
+  data Render OpenGLTexture R2 = GlTexRen (BoundingBox R2) (GLRenderM [GlPrim])
+  type Result OpenGLTexture R2 = IO (Maybe TextureObject)
+  data Options OpenGLTexture R2 = GlTexOptions
+                           { bgTexColor :: AlphaColour Double -- ^ The clear color
+                           , texSize   :: GLsizei             -- ^ Square texture side in pixels
+                           }
+                         deriving Show
+  withStyle _ s _ (GlTexRen b p) =
+      GlTexRen b $ do
+        mapM_ ($ s)
+          [ changeLineColor
+          , changeFillColor
+          , changeOpacity
+          , changeLineWidth
+          , changeLineCap
+          , changeLineJoin
+          , changeFillRule
+          , changeDashing
+          , changeClip
+          ]
+        p
+
+-- | The OpenGLTexture backend expects doRender to be called once.
+--   Returns TextureObject.
+  doRender _ o (GlTexRen b p) = do
+    oldViewport <- GL.get viewport
+    oldTextureBindingTexture2D <- GL.get $ textureBinding Texture2D
+    oldBindFramebufferFramebuffer <- GL.get $ bindFramebuffer Framebuffer
+
+    [framebuffer] <- genObjectNames 1
+    bindFramebuffer Framebuffer $= framebuffer
+    [tex] <- genObjectNames 1
+    textureBinding Texture2D $= Just tex
+    textureFilter Texture2D $= ((Linear', Nothing), Linear')
+    textureWrapMode Texture2D S $= (Mirrored, ClampToEdge)
+    textureWrapMode Texture2D T $= (Mirrored, ClampToEdge)
+    texImage2D Nothing NoProxy 0 RGBA'
+                          (TextureSize2D (texSize o) (texSize o)) 0 (PixelData RGBA UnsignedByte nullPtr)
+    textureBinding Texture2D $= Nothing
+    framebufferTexture2D Framebuffer (ColorAttachment 0) Nothing tex 0
+    drawBuffers $= [FBOColorAttachment 0]
+    preserveAspectB b (Size (texSize o) (texSize o))
+    doRender OpenGL (GlOptions (bgTexColor o)) (GlRen b p)
+    s <- GL.get $ framebufferStatus Framebuffer
+
+    viewport $= oldViewport
+    textureBinding Texture2D $= oldTextureBindingTexture2D
+    bindFramebuffer Framebuffer $= oldBindFramebufferFramebuffer
+
+    return $ case s of
+               Complete -> Just tex
+               _        -> Nothing
+
+instance Monoid (Render OpenGLTexture R2) where
+  mempty = GlTexRen emptyBox $ return mempty
+  (GlTexRen b1 p01) `mappend` (GlTexRen b2 p02) =
+    GlTexRen (b1 <> b2) $ liftA2 (<>) p01 p02
+
+instance Renderable (Path R2) OpenGLTexture where
+  render _ = uncurry GlTexRen . renderPath
+
+instance Renderable (Trail R2) OpenGLTexture where
+  render c t = render c $ Path [(p2 (0,0), t)]
+
+instance Renderable (Segment R2) OpenGLTexture where
   render c = render c . flip Trail False . (:[])
 
 dimensions :: QDiagram b R2 m -> (Double, Double)
@@ -306,6 +431,27 @@ inclusiveOrtho b = ortho x0 x1 y0 y1 z0 z1 where
   (x1, y1) = r2fPr $ unp2 ur + 0.05 * ext
   z0 = 0
   z1 = 1
+
+preserveAspect :: Double -> Size -> IO ()
+preserveAspect a (Size w h) = viewport $= (Position x y, Size w' h')
+ where
+  w' = floor $ min (r2f w) (r2f h * a)
+  h' = floor $ min (r2f h) (r2f w / a)
+  x  = (w - w') `div` 2
+  y  = (h - h') `div` 2
+
+preserveAspectD :: Diagram a R2 -> Size -> IO ()
+preserveAspectD d = preserveAspect a
+ where
+  a = aspectRatio d
+
+preserveAspectB :: BoundingBox R2 -> Size -> IO ()
+preserveAspectB b = preserveAspect a
+ where
+  a = uncurry (/) . unr2 $ boxExtents b
+
+defaultOptions :: Options OpenGL R2
+defaultOptions = GlOptions (opaque white)
 
 {- Style changes -}
 
