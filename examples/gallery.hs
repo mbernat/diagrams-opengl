@@ -2,8 +2,6 @@
 
 import Control.Monad
 
-import Codec.Picture
-
 import qualified Data.Typeable as T
 import qualified Data.Vector.Storable as V
 import Data.Maybe
@@ -68,7 +66,7 @@ main = do
   clientState VertexArray $= Enabled
 
   --rendering
-  textures <- mapM (renderDia OpenGLTexture defOpts) d
+  textures <- mapM (unsafeInterleaveIO . renderDia OpenGLTexture defOpts) d
 
   -- load shader programs
   p <- loadShaders "examples/TransformVertexShader.vertexshader" "examples/TextureFragmentShader.fragmentshader"
@@ -93,14 +91,14 @@ main = do
            ,[ 1, 1],[ 0, 1],[ 0, 0]]
 
   --init opengl
-  [vao] <- genObjectNames 1
-  bindVertexArrayObject $= Just vao
   blend $= Enabled
   blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
   texture Texture2D $= Enabled
   clearColor $= Color4 1 1 0.9 1
   currentProgram $= Just p
 
+  [vao] <- genObjectNames 1
+  bindVertexArrayObject $= Just vao
 
   displayCallback $= do
     clear [ColorBuffer, DepthBuffer]
@@ -147,7 +145,7 @@ keyboardMouse n (Char 'k') Down _ _ = do
 keyboardMouse _ _ _ _ _ = return ()
 
 defOpts :: Options OpenGLTexture R2
-defOpts = GlTexOptions (withOpacity gray 0) 4096
+defOpts = GlTexOptions (withOpacity gray 0) 2048
 
 initGeometry :: V.Vector GLfloat -> IO BufferObject
 initGeometry tris = do

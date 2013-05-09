@@ -269,17 +269,68 @@ instance Backend OpenGL R2 where
 --   Ideally, most of the work would be done on the first rendering,
 --   and subsequent renderings should require very little CPU computation
   doRender _ o (GlRen b p) = do
+    -- Save OpenGL state before setting new values
+
+    oldClearColor <- GL.get clearColor
     clearColor $= glColor (bgColor o)
-    clear [ColorBuffer]
-    matrixMode $= Modelview 0
-    loadIdentity
-    inclusiveOrtho b
-    let ps = evalState p initialGLRenderState
+
+    -- oldPolygonMode <- GL.get GL.polygonMode
     -- GL.polygonMode $= (GL.Line, GL.Line)
+
+    oldBlend <- GL.get GL.blend
     GL.blend $= Enabled
+
+    oldBlendFunc <- GL.get blendFunc
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    mapM_ (drawOGL 2) ps
+
+    oldClientStateVertexArray <- GL.get $ clientState VertexArray
+    clientState VertexArray $= Enabled
+
+    oldTextureTexture2D <- GL.get $ texture Texture2D
+    texture Texture2D $= Disabled
+
+    oldCurrentProgram <- GL.get currentProgram
+    currentProgram $= Nothing
+
+    oldMatrixMode <- GL.get matrixMode
+    matrixMode $= Modelview 0
+
+    oldArrayPointerVertexArray <- GL.get $ arrayPointer VertexArray
+
+    oldBindVertexArrayObject <- GL.get $ bindVertexArrayObject
+    bindVertexArrayObject $= Nothing
+
+    oldBindBuffer <- GL.get $ bindBuffer ArrayBuffer
+    bindBuffer ArrayBuffer $= Nothing
+
+    oldVertexAttribArrayAttribLocation0 <- GL.get $ vertexAttribArray (AttribLocation 0)
+    vertexAttribArray (AttribLocation 0) $= Disabled
+
+    oldVertexAttribArrayAttribLocation1 <- GL.get $ vertexAttribArray (AttribLocation 1)
+    vertexAttribArray (AttribLocation 1) $= Disabled
+
+    clear [ColorBuffer]
+    preservingMatrix $ do
+      loadIdentity
+      inclusiveOrtho b
+      let ps = evalState p initialGLRenderState
+      mapM_ (drawOGL 2) ps
     flush
+
+    -- Restore OpenGL state
+    clearColor $= oldClearColor
+    -- GL.polygonMode $= oldPolygonMode
+    GL.blend $= oldBlend
+    blendFunc $= oldBlendFunc
+    clientState VertexArray $= oldClientStateVertexArray
+    texture Texture2D $= oldTextureTexture2D
+    currentProgram $= oldCurrentProgram
+    matrixMode $= oldMatrixMode
+    arrayPointer VertexArray $= oldArrayPointerVertexArray
+    bindVertexArrayObject $= oldBindVertexArrayObject
+    bindBuffer ArrayBuffer $= oldBindBuffer
+    vertexAttribArray (AttribLocation 0) $= oldVertexAttribArrayAttribLocation0
+    vertexAttribArray (AttribLocation 1) $= oldVertexAttribArrayAttribLocation1
 
 instance Monoid (Render OpenGL R2) where
   mempty = GlRen emptyBox $ return mempty
@@ -322,7 +373,11 @@ instance Backend OpenGLTexture R2 where
 
 -- | The OpenGLTexture backend expects doRender to be called once.
 --   Returns TextureObject.
-  doRender _ o (GlTexRen b p) = preservingMatrix $ do
+  doRender _ o (GlTexRen b p) = do
+    oldViewport <- GL.get viewport
+    oldTextureBindingTexture2D <- GL.get $ textureBinding Texture2D
+    oldBindFramebufferFramebuffer <- GL.get $ bindFramebuffer Framebuffer
+
     [framebuffer] <- genObjectNames 1
     bindFramebuffer Framebuffer $= framebuffer
     [tex] <- genObjectNames 1
@@ -338,7 +393,11 @@ instance Backend OpenGLTexture R2 where
     preserveAspectB b (Size (texSize o) (texSize o))
     doRender OpenGL (GlOptions (bgTexColor o)) (GlRen b p)
     s <- GL.get $ framebufferStatus Framebuffer
-    bindFramebuffer Framebuffer $= defaultFramebufferObject
+
+    viewport $= oldViewport
+    textureBinding Texture2D $= oldTextureBindingTexture2D
+    bindFramebuffer Framebuffer $= oldBindFramebufferFramebuffer
+
     return $ case s of
                Complete -> Just tex
                _        -> Nothing

@@ -15,7 +15,6 @@ defaultMain d = do
   _ <- createWindow "Diagrams"
   displayCallback $= (renderDia OpenGL defaultOptions d)
   reshapeCallback $= (Just $ preserveAspectD d)
-  clientState VertexArray $= Enabled
   mainLoop
 
 intermediateRep :: Monoid' m
