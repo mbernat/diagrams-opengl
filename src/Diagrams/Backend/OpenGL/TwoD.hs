@@ -177,9 +177,8 @@ renderPath p@(Path trs) =
        clippedPolygons vis clip = concatMap (tessRegion TessWindingAbsGeqTwo . (: clip)) vis
        box = boundingBox p
 
-renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
-renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) vertices
-  where vertices = V.fromList $ concatMap flatP2 ps
+renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim P2
+renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) ps
 
 trlVertices :: (P2, Trail R2) -> [P2]
 trlVertices (p0, t) =
@@ -205,9 +204,6 @@ tessRegion fr trs = renderTriangulation $ unsafePerformIO $
        renderTriangulation (Triangulation ts) = map renderTriangle ts
        renderTriangle (Triangle a b c) = map deAnnotate [a, b, c]
        deAnnotate (AnnotatedVertex (Vertex3 x y _) _) = p2 (r2f x, r2f y)
-
-flatP2 :: (Fractional a, Num a) => P2 -> [a]
-flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 
 data GLRenderState =
   GLRenderState{ currentLineColor  :: AlphaColour Double
@@ -238,7 +234,7 @@ initialGLRenderState = GLRenderState
 type GLRenderM a = State GLRenderState a
 
 instance Backend OpenGL R2 where
-  data Render OpenGL R2 = GlRen (BoundingBox R2) (GLRenderM [GlPrim])
+  data Render OpenGL R2 = GlRen (BoundingBox R2) (GLRenderM [GlPrim P2])
   type Result OpenGL R2 = IO ()
   data Options OpenGL R2 = GlOptions
                            { bgColor :: AlphaColour Double -- ^ The clear color for the window
@@ -272,7 +268,7 @@ instance Backend OpenGL R2 where
     -- GL.polygonMode $= (GL.Line, GL.Line)
     GL.blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    mapM_ (drawOGL 2) ps
+    mapM_ draw2 ps
     flush
 
 instance Monoid (Render OpenGL R2) where
