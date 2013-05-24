@@ -52,6 +52,7 @@ Library
                      , GLUT          >= 2.3   && < 2.5
                      , semigroups    >= 0.3.4 && < 0.10
                      , mtl           >= 1     && < 2.2
+                     , newtype       >= 0.2   && < 0.3
   if !os(windows)
     cpp-options: -DCMDLINELOOP
     Build-depends:     unix >= 2.4 && < 2.7
