@@ -121,14 +121,14 @@ r2fPr (a,b) = (r2f a, r2f b)
 r2fQuad :: (Real r, Fractional f) => (r,r,r,r) -> (f,f,f,f)
 r2fQuad (a,b,c,d) = (r2f a, r2f b, r2f c, r2f d)
 
-flatP2 :: [P2] -> [Double]
+flatP2 :: (Fractional a, Num a) => [P2] -> [a]
 flatP2 = concatMap (flat2 . unp2)
 
-flat2 :: (Double, Double) -> [Double]
-flat2 (a,b) = [a,b]
+flat2 :: (Real r, Fractional a, Num a) => (r, r) -> [a]
+flat2 (a,b) = [r2f a, r2f b]
 
-flatP3 :: [P3] -> [Double]
-flatP3 ps = concatMap (flat3 . unp3) ps
+flatP3 :: (Fractional a, Num a) => [P3] -> [a]
+flatP3 = concatMap (flat3 . unp3)
 
-flat3 :: (Double, Double, Double) -> [Double]
-flat3 (a,b,c) = [a,b,c]
+flat3 :: (Fractional a, Num a) => (Double, Double, Double) -> [a]
+flat3 (a,b,c) = [r2f a,r2f b,r2f c]
