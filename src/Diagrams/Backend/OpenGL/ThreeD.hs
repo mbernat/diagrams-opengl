@@ -43,27 +43,25 @@ instance Backend OpenGL R3 where
 
 instance Renderable Ellipsoid OpenGL where
   render _ (Ellipsoid t) =
-    GlRen [GlPrim TriangleStrip (opaque green) (map (papply t) $ polarSphere 10 10)]
+    GlRen [GlPrim TriangleStrip (opaque green) (map (papply t) $ polarSphere 30 30)]
 
 polarSphere :: Int -> Int -> [P3]
-polarSphere nLog nLat = concat. (map.map) cartesian $ tris where
-  cartesian (phi, theta) = p3 (cos theta * cos phi, sin theta * cos phi, sin phi)
+polarSphere nLog nLat = map cartesian tris where
+  cartesian (theta, phi) = p3 (cos theta * cos phi, sin theta * cos phi, sin phi)
   -- coördinates at which to evaluate
-  phis' = [-pi/2, -pi/2+pi/2/(r2f nLat)..pi/2]
+  dp = pi/(r2f nLat)
+  phis' = [-pi/2, -pi/2+dp .. pi/2]
   phis = zip (init phis') (tail phis')
-  thetas' = [0, pi/(r2f nLog), 2*pi]
-  thetas = zip (init thetas') (tail thetas')
+  dt = 2*pi/(r2f nLog)
+  thetas = [0, dt .. 2*pi]
   -- more helper functions on lists
   interleave = concat . transpose
-  evens l = map (l !!) [0,2..length l-1]
-  odds l = map (l !!) [1,3..length l-1]
   -- triangulate a cell
-  zOdd  (t0, t1) (p0, p1) = [(p0,t1), (p1,t0), (p1,t1)]
-  zEven (t0, t1) (p0, p1) = [(p1,t1), (p0,t0), (p0,t1)]
-  start = [[(head phis', head thetas')]]
+  cell :: (Double, Double) -> Double -> [(Double, Double)]
+  cell (p0, p1) t = [(t, p0), (t, p1)]
   -- put it all together
-  tris :: [[(Double, Double)]]
-  tris = interleave [start, (zOdd <$> odds thetas <*> phis), (zEven <$> evens thetas <*> phis)]
+  tris :: [(Double, Double)]
+  tris =concat $ cell <$> phis <*> thetas
 
 -- geodesicSphere :: Int -- ^ Number of subdivisions
 --                   -> [[P3]]
