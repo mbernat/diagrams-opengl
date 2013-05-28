@@ -23,7 +23,7 @@ defaultMain d = do
   -- lightModelAmbient $= Color4 0.4 0.4 0.4 1
   let l = Light 0
   light       l $= Enabled
-  GL.position l $= Vertex4 1 0 0 0
+  GL.position l $= Vertex4 100 -1 0 0
   GL.diffuse  l $= glColor (opaque white)
   GL.specular l $= glColor (opaque white)
   GL.ambient  l $= Color4 0.3 0.3 0.3 1
@@ -34,4 +34,4 @@ defaultMain d = do
   mainLoop
 
 defaultOptions :: Options OpenGL R3
-defaultOptions = GlOptions (opaque black) (Viewpoint Ortho (-1) 1 (-1) 1 0 1)
+defaultOptions = GlOptions (opaque black) (Viewpoint Frustum (-1) 1 (-1) 1 1 10)
