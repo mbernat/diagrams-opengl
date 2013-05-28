@@ -4,3 +4,14 @@
 dist/
 *_flymake.hs
 cabal-dev/
+/examples/clipping
+/examples/curves
+/examples/debug
+/examples/fillRule
+/examples/gallery
+/examples/lineForm
+/examples/lines
+/examples/pathLike
+/examples/polygons
+/examples/segments
+/examples/transparency
