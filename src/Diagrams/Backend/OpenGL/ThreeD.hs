@@ -16,6 +16,7 @@ import Data.List
 
 import Graphics.Rendering.OpenGL as GL
 import qualified Data.Vector.Storable as V
+import Data.Colour.SRGB
 
 import Diagrams.Prelude
 import Diagrams.ThreeD.Shapes
@@ -29,9 +30,11 @@ instance Monoid (Render OpenGL R3) where
   (GlRen a) `mappend` (GlRen b) = GlRen (a <> b)
 
 data ProjectionType = Ortho | Frustum
+                    deriving Show
 
 data Viewpoint = Viewpoint ProjectionType
                   Double Double Double Double Double Double
+               deriving Show
 
 setViewpoint :: Viewpoint -> IO ()
 setViewpoint (Viewpoint t x0 x1 y0 y1 z0 z1) = do
@@ -47,8 +50,10 @@ instance Backend OpenGL R3 where
   data Options OpenGL R3 = GlOptions {
     bgColor :: AlphaColour Double, -- ^ The clear color for the window
     viewpoint :: Viewpoint        -- ^ Defines the viewpoint and field of view
-    }
-  withStyle _ _ _ r = r
+    } deriving Show
+
+  withStyle _ s _ (GlRen ps) =
+    GlRen $ map (setColor s) ps
 
   doRender _ o (GlRen p) = do
     clearColor $= glColor (bgColor o)
@@ -83,10 +88,6 @@ polarSphere nLog nLat = map cartesian tris where
   tris :: [(Double, Double)]
   tris =concat $ cell <$> phis <*> thetas
 
--- geodesicSphere :: Int -- ^ Number of subdivisions
---                   -> [[P3]]
--- geodesicSphere nu =
-
 -- icosahedron with unit radius, centered at origin
 icosahedron :: [P3]
 icosahedron = map (ps !!) $ tris where
@@ -115,3 +116,8 @@ icosahedron = map (ps !!) $ tris where
     p = (1+sqrt(5)/2)
     l = p/(sqrt (1+p^2))
     s = 1/(sqrt (1+p^2))
+
+setColor :: Style v -> GlPrim P3 -> GlPrim P3
+setColor s p = case colorToSRGBA <$> getFillColor <$> getAttr s of
+  Just (r, g, b, a) -> p {primColor = withOpacity (sRGB r g b) a}
+  Nothing           -> p
