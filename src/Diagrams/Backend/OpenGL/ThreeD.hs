@@ -4,7 +4,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Diagrams.Backend.OpenGL.ThreeD (OpenGL(..), Options(..) ) where
+module Diagrams.Backend.OpenGL.ThreeD
+       (OpenGL(..),
+        Options(..),
+        ProjectionType(..),
+        Viewpoint(..),
+       ) where
 
 import Control.Lens
 import Data.List
@@ -23,11 +28,25 @@ instance Monoid (Render OpenGL R3) where
   mempty = GlRen []
   (GlRen a) `mappend` (GlRen b) = GlRen (a <> b)
 
+data ProjectionType = Ortho | Frustum
+
+data Viewpoint = Viewpoint ProjectionType
+                  Double Double Double Double Double Double
+
+setViewpoint :: Viewpoint -> IO ()
+setViewpoint (Viewpoint t x0 x1 y0 y1 z0 z1) = do
+  matrixMode $= Projection
+  loadIdentity
+  (set t) (r2f x0) (r2f x1) (r2f y0) (r2f y1) (r2f z0) (r2f z1) where
+    set Ortho = ortho
+    set Frustum = frustum
+
 instance Backend OpenGL R3 where
   data Render OpenGL R3 = GlRen [GlPrim P3]
   type Result OpenGL R3 = IO ()
   data Options OpenGL R3 = GlOptions {
-    bgColor :: AlphaColour Double -- ^ The clear color for the window
+    bgColor :: AlphaColour Double, -- ^ The clear color for the window
+    viewpoint :: Viewpoint        -- ^ Defines the viewpoint and field of view
     }
   withStyle _ _ _ r = r
 
@@ -36,6 +55,7 @@ instance Backend OpenGL R3 where
     clear [ColorBuffer]
     matrixMode $= Modelview 0
     loadIdentity
+    setViewpoint $ viewpoint o
     GL.blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
     mapM_ draw3 p

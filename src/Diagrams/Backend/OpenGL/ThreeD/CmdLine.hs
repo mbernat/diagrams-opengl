@@ -26,7 +26,7 @@ defaultMain d = do
   GL.position l $= Vertex4 1 0 0 0
   GL.diffuse  l $= glColor (opaque white)
   GL.specular l $= glColor (opaque white)
-  GL.ambient  l $= Color4 0.2 0.2 0.2 1
+  GL.ambient  l $= Color4 0.3 0.3 0.3 1
   materialAmbient FrontAndBack $= glColor (opaque blue)
   displayCallback $= (renderDia OpenGL defaultOptions d)
   clientState VertexArray $= Enabled
@@ -34,5 +34,4 @@ defaultMain d = do
   mainLoop
 
 defaultOptions :: Options OpenGL R3
-defaultOptions = GlOptions (opaque black)
-
+defaultOptions = GlOptions (opaque black) (Viewpoint Ortho (-1) 1 (-1) 1 0 1)
