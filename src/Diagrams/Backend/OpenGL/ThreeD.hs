@@ -11,7 +11,7 @@ module Diagrams.Backend.OpenGL.ThreeD
         Viewpoint(..),
        ) where
 
-import Control.Lens
+--import Control.Lens
 import Data.List
 
 import Graphics.Rendering.OpenGL as GL
@@ -68,7 +68,17 @@ instance Backend OpenGL R3 where
 
 instance Renderable Ellipsoid OpenGL where
   render _ (Ellipsoid t) =
-    GlRen [GlPrim TriangleStrip (opaque green) (map (papply t) $ polarSphere 30 30)]
+    GlRen [GlPrim TriangleStrip defaultColor (map (papply t) $ polarSphere 30 30)]
+
+instance Renderable NurbsSurface OpenGL where
+  render _ n =
+    GlRen [GlPrim TriangleStrip defaultColor $ triangulateQuads . surfaceGrid n 30 $ 30]
+
+triangulateQuads :: [[R3]] -> [P3]
+triangulateQuads rs = concatMap (map (origin .+^) . interleave) pairs where
+  pairs = zip (init rs) (tail rs)
+  flat2 (a, b) = [a, b]
+  interleave = concatMap flat2 . uncurry zip
 
 polarSphere :: Int -> Int -> [P3]
 polarSphere nLog nLat = map cartesian tris where
@@ -79,7 +89,7 @@ polarSphere nLog nLat = map cartesian tris where
   phis = zip (init phis') (tail phis')
   dt = 2*pi/(r2f nLog)
   thetas = [0, dt .. 2*pi]
-  -- more helper functions on lists
+  -- more list utility functions
   interleave = concat . transpose
   -- triangulate a cell
   cell :: (Double, Double) -> Double -> [(Double, Double)]
@@ -121,3 +131,6 @@ setColor :: Style v -> GlPrim P3 -> GlPrim P3
 setColor s p = case colorToSRGBA <$> getFillColor <$> getAttr s of
   Just (r, g, b, a) -> p {primColor = withOpacity (sRGB r g b) a}
   Nothing           -> p
+
+
+defaultColor = opaque green
