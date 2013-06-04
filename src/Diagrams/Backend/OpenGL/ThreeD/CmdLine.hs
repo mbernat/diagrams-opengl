@@ -16,7 +16,7 @@ import Graphics.Rendering.OpenGL as GL
 defaultMain :: Diagram OpenGL R3 -> IO ()
 defaultMain d = do
   _ <- getArgsAndInitialize
-  initialDisplayMode $= [WithSamplesPerPixel 16,WithDepthBuffer,WithDepthBuffer,RGBAMode,WithAlphaComponent]
+  initialDisplayMode $= [WithSamplesPerPixel 16,WithDepthBuffer,RGBAMode,WithAlphaComponent]
   _ <- createWindow "Diagrams"
   lighting $= Enabled
   colorMaterial $= Just (FrontAndBack, AmbientAndDiffuse)
