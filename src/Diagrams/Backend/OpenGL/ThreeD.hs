@@ -21,6 +21,7 @@ import Data.Colour.SRGB
 import Diagrams.Prelude
 import Diagrams.ThreeD.Shapes
 import Diagrams.ThreeD.Types
+import Math.Spline.NurbsSurface
 
 import Graphics.Rendering.Util  -- local module, not exposed
 import Diagrams.Backend.OpenGL.Types
@@ -72,10 +73,13 @@ instance Renderable Ellipsoid OpenGL where
 
 instance Renderable NurbsSurface OpenGL where
   render _ n =
-    GlRen [GlPrim TriangleStrip defaultColor $ triangulateQuads . surfaceGrid n 30 $ 30]
+    GlRen $ map (GlPrim TriangleStrip defaultColor)
+              (triangulateQuads . (map . map) r3 . surfaceGrid n 30 $ 30)
 
-triangulateQuads :: [[R3]] -> [P3]
-triangulateQuads rs = concatMap (map (origin .+^) . interleave) pairs where
+-- Each inner list of points is suitable for use by TriangleStrip
+-- Each quad in the input mesh becomes two triangles;
+triangulateQuads :: [[R3]] -> [[P3]]
+triangulateQuads rs = map (map (origin .+^) . interleave) pairs where
   pairs = zip (init rs) (tail rs)
   flat2 (a, b) = [a, b]
   interleave = concatMap flat2 . uncurry zip
