@@ -1,7 +1,6 @@
 import Diagrams.Prelude hiding (doRender)
 import Diagrams.Backend.OpenGL.ThreeD
 import Diagrams.Backend.OpenGL.ThreeD.CmdLine
-import Diagrams.Backend.OpenGL.Pretty
 import Diagrams.ThreeD.Types
 
 import Diagrams.ThreeD.Shapes
