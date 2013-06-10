@@ -23,7 +23,8 @@ import Diagrams.ThreeD.Shapes
 import Diagrams.ThreeD.Types
 import Math.Spline.NurbsSurface
 
-import Graphics.Rendering.Util  -- local module, not exposed
+import Graphics.Rendering.Util.ThreeD  -- local module, not exposed
+import Graphics.Rendering.Util         -- local module, not exposed
 import Diagrams.Backend.OpenGL.Types
 
 instance Monoid (Render OpenGL R3) where
@@ -46,7 +47,7 @@ setViewpoint (Viewpoint t x0 x1 y0 y1 z0 z1) = do
     set Frustum = frustum
 
 instance Backend OpenGL R3 where
-  data Render OpenGL R3 = GlRen [GlPrim P3]
+  data Render OpenGL R3 = GlRen [GlPrim3]
   type Result OpenGL R3 = IO ()
   data Options OpenGL R3 = GlOptions {
     bgColor :: AlphaColour Double, -- ^ The clear color for the window
@@ -69,17 +70,23 @@ instance Backend OpenGL R3 where
 
 instance Renderable Ellipsoid OpenGL where
   render _ (Ellipsoid t) =
-    GlRen [GlPrim TriangleStrip defaultColor (map (papply t) $ polarSphere 30 30)]
+    GlRen [GlPrim3 TriangleStrip defaultColor pts normals] where
+      pts = (map (papply t) $ polarSphere 30 30)
+      normals = map (r3 . norm . unp3) pts
+      norm v = v ^/ magnitude v
 
 instance Renderable NurbsSurface OpenGL where
   render _ n =
-    GlRen $ map (GlPrim TriangleStrip defaultColor)
-              (triangulateQuads . (map . map) r3 . surfaceGrid n 30 $ 30)
+    GlRen $ map (\pts -> GlPrim3 TriangleStrip defaultColor pts (normal pts))
+              (triangulateQuads . (map . map) p3 . surfaceGrid n 30 $ 30) where
+      normal v = map (r3 . norm . unZ . unp3) v
+      unZ (x,y,_) = (x,y,0)
+      norm v = v ^/ magnitude v
 
 -- Each inner list of points is suitable for use by TriangleStrip
 -- Each quad in the input mesh becomes two triangles;
-triangulateQuads :: [[R3]] -> [[P3]]
-triangulateQuads rs = map (map (origin .+^) . interleave) pairs where
+triangulateQuads :: [[a]] -> [[a]]
+triangulateQuads rs = (map interleave) pairs where
   pairs = zip (init rs) (tail rs)
   flat2 (a, b) = [a, b]
   interleave = concatMap flat2 . uncurry zip
@@ -131,7 +138,7 @@ icosahedron = map (ps !!) $ tris where
     l = p/(sqrt (1+p^2))
     s = 1/(sqrt (1+p^2))
 
-setColor :: Style v -> GlPrim P3 -> GlPrim P3
+setColor :: Style v -> GlPrim3 -> GlPrim3
 setColor s p = case colorToSRGBA <$> getFillColor <$> getAttr s of
   Just (r, g, b, a) -> p {primColor = withOpacity (sRGB r g b) a}
   Nothing           -> p

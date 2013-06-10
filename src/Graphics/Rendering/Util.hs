@@ -5,26 +5,15 @@ module Graphics.Rendering.Util where
 -- Wrap OpenGL calls in a slightly more declarative syntax
 -- TODO more consistent naming
 
-import Control.Newtype
 import Data.Colour
 import Foreign.Ptr
 import Foreign.Storable
 import System.IO
 import qualified Data.Vector.Storable as V
-import Data.VectorSpace
 
 import Diagrams.TwoD.Types
-import Diagrams.ThreeD.Types
 import Diagrams.Attributes
 import Graphics.Rendering.OpenGL
-
-data GlPrim a = GlPrim {
-  primMode  :: PrimitiveMode,
-  primColor :: (AlphaColour Double),
-  primPts   :: [a] }
-
-instance (Show a) => Show (GlPrim a) where
-  show (GlPrim mode c ps) = concat ["GlPrim ", show mode, " ", show c, " ", show ps]
 
 initProgram :: String -> String -> IO Program
 initProgram v f = do
@@ -78,40 +67,6 @@ glColor c = Color4 r g b a where
   -- b = realToFrac $ channelBlue rgb
   (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
-draw2 :: GlPrim P2 -> IO ()
-draw2 (GlPrim mode c pts) = draw 2 mode c $ V.fromList . map r2f . flatP2 $ pts
-
--- | The first argument is the number of coördinates given for each vertex
---   2 and 3 are readily interpreted; 4 indicates homogeneous 3D coördinates
-draw :: (Real c, Floating c) => NumComponents -> PrimitiveMode -> AlphaColour c -> V.Vector GLfloat -> IO ()
-draw dims mode c pts = do
-  color $ (glColor c :: Color4 GLfloat) -- all vertices same color
-  V.unsafeWith pts $ \ptr -> do
-    arrayPointer VertexArray $= VertexArrayDescriptor dims Float 0 ptr
-
-  drawArrays mode 0 ptCount where
-    ptCount = fromIntegral $ V.length pts `quot` (fromIntegral dims)
-
-
-draw3 :: GlPrim P3 -> IO ()
-draw3 (GlPrim mode c pts) = do
-  color $ (glColor c :: Color4 GLfloat) -- all vertices same color
-  V.unsafeWith (p3v pts) $ \ptr ->
-    arrayPointer VertexArray $= VertexArrayDescriptor 3 Float 0 ptr
-  V.unsafeWith (r3v . normals mode $ pts) $ \ptr ->
-    arrayPointer NormalArray $= VertexArrayDescriptor 3 Float 0 ptr
-  drawArrays mode 0 ptCount where
-    ptCount = fromIntegral $ length pts
-    p3v = V.fromList . concatMap (map r2f . flat3 . unp3) :: [P3] -> V.Vector GLfloat
-    r3v = V.fromList . concatMap (map r2f . flat3 . unr3) :: [R3] -> V.Vector GLfloat
-
-normals :: PrimitiveMode -> [P3] -> [R3]
--- XXX TODO this function is made entirely of lies
--- (or everything is a sphere at the origin)
-normals _ = map (r3 . norm . unp3) where
-  norm v = v ^/ magnitude v
-
-
 r2f :: (Real r, Fractional f) => r -> f
 r2f x = realToFrac x
 
@@ -126,9 +81,3 @@ flatP2 = concatMap (flat2 . unp2)
 
 flat2 :: (Real r, Fractional a, Num a) => (r, r) -> [a]
 flat2 (a,b) = [r2f a, r2f b]
-
-flatP3 :: (Fractional a, Num a) => [P3] -> [a]
-flatP3 = concatMap (flat3 . unp3)
-
-flat3 :: (Fractional a, Num a) => (Double, Double, Double) -> [a]
-flat3 (a,b,c) = [r2f a,r2f b,r2f c]

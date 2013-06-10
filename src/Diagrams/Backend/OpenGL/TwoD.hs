@@ -25,6 +25,7 @@ import Diagrams.Prelude as D hiding (Attribute, close, e, (<>))
 import Diagrams.TwoD.Arc
 import Diagrams.TwoD.Path
 import Graphics.Rendering.Util
+import Graphics.Rendering.Util.TwoD
 
 
 {- calculate drawn outlines of styled lines -}
