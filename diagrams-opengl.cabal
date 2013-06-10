@@ -40,7 +40,10 @@ Library
                        Diagrams.Backend.OpenGL.Types
                        Diagrams.Backend.OpenGL.ThreeD
                        Diagrams.Backend.OpenGL.ThreeD.CmdLine
-  Other-modules:       Graphics.Rendering.Util 
+                       Graphics.Rendering.Util
+                       Graphics.Rendering.Util.ThreeD
+                       Graphics.Rendering.Util.TwoD
+--  Other-modules:       Graphics.Rendering.Util 
   Hs-source-dirs:      src
   Build-depends:       base          >= 4.3   && < 4.7
                      , vector-space  >= 0.7   && < 0.9
