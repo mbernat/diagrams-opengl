@@ -15,3 +15,5 @@ cabal-dev/
 /examples/polygons
 /examples/segments
 /examples/transparency
+/examples/solids
+/examples/ellipsoids
