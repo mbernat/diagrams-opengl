@@ -17,11 +17,12 @@ import Data.List
 import Graphics.Rendering.OpenGL as GL
 import qualified Data.Vector.Storable as V
 import Data.Colour.SRGB
+import Control.Newtype
 
 import Diagrams.Prelude
 import Diagrams.ThreeD.Shapes
 import Diagrams.ThreeD.Types
-import Math.Spline.NurbsSurface
+import Math.NurbsSurface
 
 import Graphics.Rendering.Util.ThreeD  -- local module, not exposed
 import Graphics.Rendering.Util         -- local module, not exposed
@@ -75,10 +76,10 @@ instance Renderable Ellipsoid OpenGL where
       normals = map (r3 . norm . unp3) pts
       norm v = v ^/ magnitude v
 
-instance Renderable NurbsSurface OpenGL where
+instance Renderable (NurbsSurface Double R3) OpenGL where
   render _ n =
     GlRen $ map (\pts -> GlPrim3 TriangleStrip defaultColor pts (normal pts))
-              (triangulateQuads . (map . map) p3 . surfaceGrid n 30 $ 30) where
+              (triangulateQuads . (map . map) pack . surfaceGrid n 30 $ 30) where
       normal v = map (r3 . norm . unZ . unp3) v
       unZ (x,y,_) = (x,y,0)
       norm v = v ^/ magnitude v
