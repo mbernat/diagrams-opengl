@@ -32,24 +32,40 @@ instance Monoid (Render OpenGL R3) where
 data ProjectionType = Ortho | Frustum
                     deriving Show
 
-data Viewpoint = Viewpoint ProjectionType
+data FOV = FOV ProjectionType
                   Double Double Double Double Double Double
                deriving Show
 
-setViewpoint :: Viewpoint -> IO ()
-setViewpoint (Viewpoint t x0 x1 y0 y1 z0 z1) = do
+setViewpoint :: FOV -> IO ()
+setViewpoint (FOV t x0 x1 y0 y1 z0 z1) = do
   matrixMode $= Projection
   loadIdentity
   (set t) (r2f x0) (r2f x1) (r2f y0) (r2f y1) (r2f z0) (r2f z1) where
     set Ortho = ortho
     set Frustum = frustum
 
+setCamera :: Options OpenGL R3 -> IO ()
+setCamera o = do
+  matrixMode $= Modelview 0
+  loadIdentity
+  lookAt (vp3 . cameraPosition $ o)
+    (vp3 . cameraTarget $ o)
+    (vr3 . camaraOrientation $ o)
+  setViewpoint $ cameraFOV o where
+      vr3 :: R3 -> Vector3 GLdouble
+      vr3 (unr3 -> (x,y,z)) = Vector3 (r2f x)  (r2f y) (r2f z)
+      vp3 :: P3 -> Vertex3 GLdouble
+      vp3 (unp3 -> (x,y,z)) = Vertex3 (r2f x)  (r2f y) (r2f z)
+
 instance Backend OpenGL R3 where
   data Render OpenGL R3 = GlRen [GlPrim3]
   type Result OpenGL R3 = IO ()
   data Options OpenGL R3 = GlOptions {
     bgColor :: AlphaColour Double, -- ^ The clear color for the window
-    viewpoint :: Viewpoint        -- ^ Defines the viewpoint and field of view
+    cameraPosition :: P3,          -- ^ Position from which the scene is viewed
+    cameraTarget :: P3,            -- ^ Direction in which the camera points
+    camaraOrientation :: R3,       -- ^ Upwards orientation of camera
+    cameraFOV :: FOV        -- ^ Defines the field of view
     } deriving Show
 
   withStyle _ s _ (GlRen ps) =
@@ -58,9 +74,7 @@ instance Backend OpenGL R3 where
   doRender _ o (GlRen p) = do
     clearColor $= glColor (bgColor o)
     clear [ColorBuffer]
-    matrixMode $= Modelview 0
-    loadIdentity
-    setViewpoint $ viewpoint o
+    setCamera o
     GL.blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
     mapM_ draw3 p
