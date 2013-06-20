@@ -8,14 +8,11 @@ module Diagrams.Backend.OpenGL.ThreeD
        (OpenGL(..),
         Options(..),
         ProjectionType(..),
-        Viewpoint(..),
+        FOV(..),
+        triangulateQuads -- for testing
        ) where
 
---import Control.Lens
-import Data.List
-
 import Graphics.Rendering.OpenGL as GL
-import qualified Data.Vector.Storable as V
 import Data.Colour.SRGB
 import Control.Newtype
 
@@ -89,7 +86,7 @@ instance Renderable (NurbsSurface Double R3) OpenGL where
 triangulateQuads :: [[a]] -> [[a]]
 triangulateQuads rs = (map interleave) pairs where
   pairs = zip (init rs) (tail rs)
-  flat2 (a, b) = [a, b]
+  flat2 (a, b) = [a, b] -- unlike the Util binding, does not call r2f
   interleave = concatMap flat2 . uncurry zip
 
 polarSphere :: Int -> Int -> [P3]
@@ -101,8 +98,6 @@ polarSphere nLog nLat = map cartesian tris where
   phis = zip (init phis') (tail phis')
   dt = 2*pi/(r2f nLog)
   thetas = [0, dt .. 2*pi]
-  -- more list utility functions
-  interleave = concat . transpose
   -- triangulate a cell
   cell :: (Double, Double) -> Double -> [(Double, Double)]
   cell (p0, p1) t = [(t, p0), (t, p1)]
@@ -144,5 +139,5 @@ setColor s p = case colorToSRGBA <$> getFillColor <$> getAttr s of
   Just (r, g, b, a) -> p {primColor = withOpacity (sRGB r g b) a}
   Nothing           -> p
 
-
+defaultColor :: AlphaColour Double
 defaultColor = opaque green
