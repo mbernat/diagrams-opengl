@@ -5,7 +5,6 @@ import qualified Data.Vector.Storable as V
 import Data.Colour
 
 import Diagrams.ThreeD.Types
-import Diagrams.Attributes
 import Graphics.Rendering.OpenGL
 import Graphics.Rendering.Util
 
@@ -25,8 +24,10 @@ draw3 (GlPrim3 mode c pts norms) = do
     arrayPointer NormalArray $= VertexArrayDescriptor 3 Float 0 ptr
   drawArrays mode 0 ptCount where
     ptCount = fromIntegral $ length pts
-    p3v = V.fromList . concatMap (map r2f . flat3 . unp3) :: [P3] -> V.Vector GLfloat
-    r3v = V.fromList . concatMap (map r2f . flat3 . unr3) :: [R3] -> V.Vector GLfloat
+    p3v :: [P3] -> V.Vector GLfloat
+    p3v = V.fromList . concatMap (map r2f . flat3 . unp3)
+    r3v :: [R3] -> V.Vector GLfloat
+    r3v = V.fromList . concatMap (map r2f . flat3 . unr3)
 
 flatP3 :: (Fractional a, Num a) => [P3] -> [a]
 flatP3 = concatMap (flat3 . unp3)

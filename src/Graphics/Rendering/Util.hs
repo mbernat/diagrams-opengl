@@ -77,7 +77,7 @@ r2fQuad :: (Real r, Fractional f) => (r,r,r,r) -> (f,f,f,f)
 r2fQuad (a,b,c,d) = (r2f a, r2f b, r2f c, r2f d)
 
 flatP2 :: (Fractional a, Num a) => [P2] -> [a]
-flatP2 = concatMap (flat2 . unp2)
+flatP2 = (concatMap (flat2 . unp2))
 
 flat2 :: (Real r, Fractional a, Num a) => (r, r) -> [a]
 flat2 (a,b) = [r2f a, r2f b]
