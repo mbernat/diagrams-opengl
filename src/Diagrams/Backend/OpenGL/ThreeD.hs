@@ -87,7 +87,7 @@ instance Renderable Ellipsoid OpenGL where
       normals = map (r3 . norm . unp3) pts
       norm v = v ^/ magnitude v
 
-instance Renderable (NurbsSurface Double R3) OpenGL where
+instance Renderable NSurface OpenGL where
   render _ n =
     GlRen $ map (\pts -> GlPrim3 TriangleStrip defaultColor pts (normal pts))
               (triangulateQuads . (map . map) pack . surfaceGrid n 30 $ 30) where
@@ -95,13 +95,17 @@ instance Renderable (NurbsSurface Double R3) OpenGL where
       unZ (x,y,_) = (x,y,0)
       norm v = v ^/ magnitude v
 
+instance Renderable NurbsSolid OpenGL where
+  render o (NurbsSolid ns) =
+    mconcat $ map (render o) ns
+
 -- Each inner list of points is suitable for use by TriangleStrip
 -- Each quad in the input mesh becomes two triangles;
 triangulateQuads :: [[a]] -> [[a]]
 triangulateQuads rs = (map interleave) pairs where
   pairs = zip (init rs) (tail rs)
-  flat2 (a, b) = [a, b] -- unlike the Util binding, does not call r2f
-  interleave = concatMap flat2 . uncurry zip
+  f2 (a, b) = [a, b] -- unlike the Util binding, does not call r2f
+  interleave = concatMap f2 . uncurry zip
 
 polarSphere :: Int -> Int -> [P3]
 polarSphere nLog nLat = map cartesian tris where
