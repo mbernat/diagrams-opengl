@@ -32,8 +32,13 @@ instance Monoid (Render OpenGL R3) where
 data ProjectionType = Ortho | Frustum
                     deriving Show
 
-data FOV = FOV ProjectionType
-                  Double Double Double Double Double Double
+data FOV = FOV {  clipType   :: ProjectionType,
+                  clipLeft   :: Double,
+                  clipRight  :: Double,
+                  clipBottom :: Double,
+                  clipTop    :: Double,
+                  clipNear   :: Double,
+                  clipFar    :: Double }
                deriving Show
 
 setViewpoint :: FOV -> IO ()
