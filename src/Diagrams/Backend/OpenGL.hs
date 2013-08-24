@@ -20,7 +20,8 @@ import Data.Colour.SRGB as C
 import Graphics.Rendering.OpenGL as GL
 
 -- From Diagrams
-import Diagrams.Prelude as D hiding (Attribute, close, e, (<>))
+import Diagrams.Prelude as D hiding (Attribute, e, (<>))
+import Diagrams.Coordinates
 import Diagrams.TwoD.Arc
 import Diagrams.TwoD.Path
 import Graphics.Rendering.Util
@@ -84,8 +85,9 @@ calcCap lwf lcap (p0, p1) =
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
-      trlVertices (p1 .+^ c, arcT (Rad $ -tau/4) (Rad $ tau/4)
+      trlVertices $ (arcT (Rad $ -tau/4) (Rad $ tau/4)
                              # D.scale (r2f lwf/2) # D.rotate angle)
+                   `at` (p1 .+^ c)
     LineCapSquare -> [ p1 .+^ c
                      , p1 .-^ c
                      , p1 .+^ (norm - c)
@@ -107,8 +109,8 @@ calcJoin lj lwf (p0, p1, p3) =
                        then bevel
                        else spike
     LineJoinRound -> (p1:) $ case side of
-      1 -> trlVertices (p1 .+^ v1, arc' (lwf/2) (direction v1 :: Rad) (direction v2))
-      _ -> trlVertices (p1 .+^ v2, arc' (lwf/2) (direction v2 :: Rad) (direction v1))
+      1 -> trlVertices (arc' (lwf/2) (direction v1 :: Rad) (direction v2) `at` p1 .+^ v1)
+      _ -> trlVertices (arc' (lwf/2) (direction v2 :: Rad) (direction v1) `at` p1 .+^ v2)
     LineJoinBevel -> bevel
  where norm1       = normalized (p1 .-. p0) ^* (lwf/2)
        norm2       = normalized (p3 .-. p1) ^* (lwf/2)
@@ -180,16 +182,18 @@ renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
 renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) vertices
   where vertices = V.fromList $ concatMap flatP2 ps
 
-trlVertices :: (P2, Trail R2) -> [P2]
-trlVertices (p0, t) =
-  vertices <> if isClosed t && (magnitude (p0 .-. lp) > 0.0001)
-              then [p0]
-              else mempty
-  where vertices = concat $ zipWith segVertices
-                   (trailVertices p0 t) (trailSegments t ++ [straight (0 & 0)])
-        lp = last $ trailVertices p0 t
+trlVertices :: Located (Trail R2) -> [P2]
+trlVertices loc'dTrail = trailVs $ viewLoc loc'dTrail
+ where trailVs (p0, t) =
+         vertices <> if isLoop t && (magnitude (p0 .-. lp) > 0.0001)
+                      then [p0]
+                      else mempty
+         where vertices = concat $ zipWith segVertices
+                            trlVerts (trailSegments t ++ [straight (0 & 0)])
+               lp = last trlVerts
+               trlVerts = trailVertices loc'dTrail
 
-segVertices :: P2 -> Segment R2 -> [P2]
+segVertices :: P2 -> Segment Closed R2 -> [P2]
 segVertices p (D.Linear _) = [p]
 segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
   i = 1/30
@@ -286,10 +290,10 @@ instance Renderable (Path R2) OpenGL where
   render _ = renderPath
 
 instance Renderable (Trail R2) OpenGL where
-  render c t = render c $ Path [(p2 (0,0), t)]
+  render c t = render c $ Path [t `at` p2 (0,0)]
 
-instance Renderable (Segment R2) OpenGL where
-  render c = render c . flip Trail False . (:[])
+instance Renderable (Segment Closed R2) OpenGL where
+  render c = render c . trailFromSegments . (:[])
 
 dimensions :: QDiagram b R2 m -> (Double, Double)
 dimensions = unr2 . boxExtents . boundingBox
