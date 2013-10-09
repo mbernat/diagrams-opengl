@@ -5,38 +5,36 @@ module Graphics.Rendering.Util where
 -- Wrap OpenGL calls in a slightly more declarative syntax
 -- TODO more consistent naming
 
+import qualified Data.ByteString as BS
 import Data.Colour
 import Foreign.Ptr
 import Foreign.Storable
-import System.IO
 import qualified Data.Vector.Storable as V
 
 import Diagrams.TwoD.Types
 import Diagrams.Attributes
 import Graphics.Rendering.OpenGL
 
-initProgram :: String -> String -> IO Program
+initProgram :: BS.ByteString -> BS.ByteString -> IO Program
 initProgram v f = do
-  [vSh] <-  genObjectNames 1
-  [fSh] <- genObjectNames 1
-  shaderSource vSh $= [v]
-  shaderSource fSh $= [f]
+  vSh <-  createShader VertexShader
+  fSh <- createShader FragmentShader
+  shaderSourceBS vSh $= v
+  shaderSourceBS fSh $= f
   compileShader vSh
   compileShader fSh
 
-  [shProg] <- genObjectNames 1
-  attachedShaders shProg $= ([vSh], [fSh])
+  shProg <- createProgram
+  attachedShaders shProg $= [vSh, fSh]
   linkProgram shProg
   return shProg
 
 -- | Load a vertex shader and a fragment shader from the specified files
 loadShaders :: String -> String -> IO Program
 loadShaders vFile fFile = do
-  withFile vFile ReadMode $ \vHandle -> do
-    withFile fFile ReadMode $ \fHandle -> do
-      vText <- hGetContents vHandle
-      fText <- hGetContents fHandle
-      initProgram vText fText
+    vText <- BS.readFile vFile
+    fText <- BS.readFile fFile
+    initProgram vText fText
 
 -- TODO wrap output with info about length, foor use in render
 initGeometry :: Storable a => V.Vector a -> IO BufferObject

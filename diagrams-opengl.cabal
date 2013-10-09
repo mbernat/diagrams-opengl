@@ -38,8 +38,8 @@ Library
   Exposed-modules:     Diagrams.Backend.OpenGL.TwoD
                        Diagrams.Backend.OpenGL.TwoD.CmdLine
                        Diagrams.Backend.OpenGL.Types
-                       Diagrams.Backend.OpenGL.ThreeD
-                       Diagrams.Backend.OpenGL.ThreeD.CmdLine
+                       -- Diagrams.Backend.OpenGL.ThreeD
+                       -- Diagrams.Backend.OpenGL.ThreeD.CmdLine
                        Graphics.Rendering.Util
                        Graphics.Rendering.Util.ThreeD
                        Graphics.Rendering.Util.TwoD
@@ -48,18 +48,19 @@ Library
   Build-depends:       base          >= 4.3   && < 4.7
                      , vector-space  >= 0.7   && < 0.9
                      , colour
-                     , diagrams-core >= 0.6.1   && < 0.7
-                     , diagrams-lib  >= 0.6   && < 0.7
-                     , monoid-extras >= 0.2   && < 0.3
+                     , diagrams-core >= 0.6.1   && < 0.8
+                     , diagrams-lib  >= 0.6   && < 0.8
+                     , monoid-extras >= 0.2   && < 0.4
                      , cmdargs       >= 0.6   && < 0.11
-                     , OpenGL        >= 2.6   && < 2.9
+                     , OpenGL        >= 2.6   && < 3.0
                      , vector        >= 0.10  && < 0.11
                      , containers    >= 0.4   && < 0.6
-                     , GLUT          >= 2.3   && < 2.5
+                     , GLUT          >= 2.3   && < 2.6
                      , semigroups    >= 0.3.4 && < 0.10
                      , mtl           >= 1     && < 2.2
                      , newtype       >= 0.2   && < 0.3
                      , splines       >= 0.5   && < 0.6
+                     , bytestring    >= 0.9  && < 0.11
   if !os(windows)
     cpp-options: -DCMDLINELOOP
     Build-depends:     unix >= 2.4 && < 2.7

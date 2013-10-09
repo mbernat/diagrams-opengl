@@ -12,7 +12,6 @@ module Diagrams.Backend.OpenGL.TwoD (aspectRatio, OpenGL(..), Options(..) ) wher
 import Data.Semigroup
 import Control.Monad.State
 import System.IO.Unsafe
-import qualified Data.Vector.Storable as V
 import Data.Tuple
 
 -- Graphics
@@ -21,7 +20,7 @@ import Graphics.Rendering.OpenGL as GL
 
 -- From Diagrams
 import Diagrams.Backend.OpenGL.Types
-import Diagrams.Prelude as D hiding (Attribute, close, e, (<>))
+import Diagrams.Prelude as D hiding (Attribute, e, (<>))
 import Diagrams.TwoD.Arc
 import Diagrams.TwoD.Path
 import Graphics.Rendering.Util
@@ -86,8 +85,8 @@ calcCap lwf lcap (p0, p1) =
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
-      trlVertices (p1 .+^ c, arcT (Rad $ -tau/4) (Rad $ tau/4)
-                             # D.scale (r2f lwf/2) # D.rotate angle)
+      trlVertices (arcT (Rad $ -tau/4) (Rad $ tau/4)
+                             # D.scale (r2f lwf/2) # D.rotate angle `at` p1 .+^ c)
     LineCapSquare -> [ p1 .+^ c
                      , p1 .-^ c
                      , p1 .+^ (norm - c)
@@ -107,10 +106,10 @@ calcJoin lj lwf (p0, p1, p3) =
   case lj of
     LineJoinMiter -> if abs spikeLength > 10 * lwf
                        then bevel
-                       else spike
+                       else spike_
     LineJoinRound -> (p1:) $ case side of
-      1 -> trlVertices (p1 .+^ v1, arc' (lwf/2) (direction v1 :: Rad) (direction v2))
-      _ -> trlVertices (p1 .+^ v2, arc' (lwf/2) (direction v2 :: Rad) (direction v1))
+      1 -> trlVertices (arc' (lwf/2) (direction v1 :: Rad) (direction v2) `at` p1 .+^ v1)
+      _ -> trlVertices (arc' (lwf/2) (direction v2 :: Rad) (direction v1) `at` p1 .+^ v2)
     LineJoinBevel -> bevel
  where norm1       = normalized (p1 .-. p0) ^* (lwf/2)
        norm2       = normalized (p3 .-. p1) ^* (lwf/2)
@@ -129,7 +128,7 @@ calcJoin lj lwf (p0, p1, p3) =
        spikeLength = (lwf/2) / cos (getRad spikeAngle)
        v3 :: R2
        v3          = D.rotate (direction v1 - spikeAngle) unitX ^* spikeLength
-       spike       = [ p1 .+^ v1
+       spike_       = [ p1 .+^ v1
                      , p1 .+^ v3
                      , p1 .+^ v2
                      , p1
@@ -181,16 +180,19 @@ renderPath p@(Path trs) =
 renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim P2
 renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) ps
 
-trlVertices :: (P2, Trail R2) -> [P2]
-trlVertices (p0, t) =
-  vertices <> if isClosed t && (magnitude (p0 .-. lp) > 0.0001)
+trlVertices :: Located (Trail R2) -> [P2]
+trlVertices locT =
+  vertices <> if isLoop t && (magnitude (p0 .-. lp) > 0.0001)
               then [p0]
               else mempty
-  where vertices = concat $ zipWith segVertices
-                   (trailVertices p0 t) (trailSegments t ++ [straight (0 & 0)])
-        lp = last $ trailVertices p0 t
+  where
+    p0 = loc locT
+    t = unLoc locT
+    vertices = concat $ zipWith segVertices
+               (trailVertices locT) (trailSegments t ++ [straight zeroV])
+    lp = last $ trailVertices locT
 
-segVertices :: P2 -> Segment R2 -> [P2]
+segVertices :: P2 -> Segment Closed R2 -> [P2]
 segVertices p (D.Linear _) = [p]
 segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
   i = 1/30
@@ -241,6 +243,7 @@ instance Backend OpenGL R2 where
                            { bgColor :: AlphaColour Double -- ^ The clear color for the window
                            }
                          deriving Show
+
   withStyle _ s _ (GlRen b p) =
       GlRen b $ do
         mapM_ ($ s)
@@ -281,10 +284,10 @@ instance Renderable (Path R2) OpenGL where
   render _ = renderPath
 
 instance Renderable (Trail R2) OpenGL where
-  render c t = render c $ Path [(p2 (0,0), t)]
+  render c t = render c $ Path [t `at` origin]
 
-instance Renderable (Segment R2) OpenGL where
-  render c = render c . flip Trail False . (:[])
+instance Renderable (Segment Closed R2) OpenGL where
+  render c s = render c (fromSegments [s] :: Path R2)
 
 dimensions :: QDiagram b R2 m -> (Double, Double)
 dimensions = unr2 . boxExtents . boundingBox
@@ -370,10 +373,10 @@ changeDashing s =
 changeClip :: Style v -> GLRenderM ()
 changeClip s =
   case clip of
-    Just (Path trs:_) ->
+    Just (Path tr:_) ->
       modify $ \st ->
       st{ currentClip = tessRegion TessWindingNonzero $
-                        map trlVertices trs
+                        map trlVertices tr
         }
     Just _       -> return ()
     Nothing      -> return ()

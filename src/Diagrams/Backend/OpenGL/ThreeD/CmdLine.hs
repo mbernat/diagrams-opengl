@@ -59,4 +59,4 @@ plusZOrient :: P3 -> R3
 plusZOrient p = r3 (-sin φ * cos θ, sin θ * sin φ, cos φ) where
   (x,y,z) = unp3 p
   φ = asin z
-  θ = atan $ y / x
+  θ = atan2 y x

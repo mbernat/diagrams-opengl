@@ -25,9 +25,9 @@ draw3 (GlPrim3 mode c pts norms) = do
   drawArrays mode 0 ptCount where
     ptCount = fromIntegral $ length pts
     p3v :: [P3] -> V.Vector GLfloat
-    p3v = V.fromList . concatMap (map r2f . flat3 . unp3)
+    p3v = V.fromList . concatMap (flat3 . unp3)
     r3v :: [R3] -> V.Vector GLfloat
-    r3v = V.fromList . concatMap (map r2f . flat3 . unr3)
+    r3v = V.fromList . concatMap (flat3 . unr3)
 
 flatP3 :: (Fractional a, Num a) => [P3] -> [a]
 flatP3 = concatMap (flat3 . unp3)
