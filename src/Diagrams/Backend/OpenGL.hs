@@ -8,22 +8,24 @@
 module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..) ) where
 
 -- General  Haskell
-import Data.Semigroup
-import Control.Monad.State
-import System.IO.Unsafe
+import           Control.Monad.State
+import           Data.Semigroup
+import           Data.Tuple
 import           Data.Typeable
+import           Control.Lens (op)
+import           System.IO.Unsafe
 import qualified Data.Vector.Storable as V
-import Data.Tuple
 
 -- Graphics
-import Data.Colour.SRGB as C
-import Graphics.Rendering.OpenGL as GL
+import           Data.Colour.SRGB as C
+import           Graphics.Rendering.OpenGL as GL
 
 -- From Diagrams
-import Diagrams.Prelude as D hiding (Attribute, close, e, (<>))
-import Diagrams.TwoD.Arc
-import Diagrams.TwoD.Path
-import Graphics.Rendering.Util
+import           Diagrams.BoundingBox
+import           Diagrams.Prelude as D hiding (Attribute, (<>))
+import           Diagrams.TwoD.Arc
+import           Diagrams.TwoD.Path
+import           Graphics.Rendering.Util
 
 
 {- calculate drawn outlines of styled lines -}
@@ -84,8 +86,8 @@ calcCap lwf lcap (p0, p1) =
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
-      trlVertices (p1 .+^ c, arcT (Rad $ -tau/4) (Rad $ tau/4)
-                             # D.scale (r2f lwf/2) # D.rotate angle)
+      trlVertices $ (arcT (Rad $ -tau/4) (Rad $ tau/4)
+                             # D.scale (r2f lwf/2) # D.rotate angle) `at` p1 .+^ c
     LineCapSquare -> [ p1 .+^ c
                      , p1 .-^ c
                      , p1 .+^ (norm - c)
@@ -105,10 +107,10 @@ calcJoin lj lwf (p0, p1, p3) =
   case lj of
     LineJoinMiter -> if abs spikeLength > 10 * lwf
                        then bevel
-                       else spike
+                       else spikeJoin
     LineJoinRound -> (p1:) $ case side of
-      1 -> trlVertices (p1 .+^ v1, arc' (lwf/2) (direction v1 :: Rad) (direction v2))
-      _ -> trlVertices (p1 .+^ v2, arc' (lwf/2) (direction v2 :: Rad) (direction v1))
+      1 -> trlVertices $ (arc' (lwf/2) (direction v1 :: Rad) (direction v2)) `at` p1 .+^ v1
+      _ -> trlVertices $ (arc' (lwf/2) (direction v2 :: Rad) (direction v1)) `at` p1 .+^ v2
     LineJoinBevel -> bevel
  where norm1       = normalized (p1 .-. p0) ^* (lwf/2)
        norm2       = normalized (p3 .-. p1) ^* (lwf/2)
@@ -124,10 +126,10 @@ calcJoin lj lwf (p0, p1, p3) =
                      , p1
                      ]
        spikeAngle  = (direction v1 - direction v2) / 2
-       spikeLength = (lwf/2) / cos (getRad spikeAngle)
+       spikeLength = (lwf/2) / cos (op Rad spikeAngle)
        v3 :: R2
        v3          = D.rotate (direction v1 - spikeAngle) unitX ^* spikeLength
-       spike       = [ p1 .+^ v1
+       spikeJoin   = [ p1 .+^ v1
                      , p1 .+^ v3
                      , p1 .+^ v2
                      , p1
@@ -180,16 +182,16 @@ renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
 renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) vertices
   where vertices = V.fromList $ concatMap flatP2 ps
 
-trlVertices :: (P2, Trail R2) -> [P2]
-trlVertices (p0, t) =
-  vertices <> if isClosed t && (magnitude (p0 .-. lp) > 0.0001)
+trlVertices :: Located (Trail R2) -> [P2]
+trlVertices lt@(viewLoc -> (p0, t)) =
+  vertices <> if isLoop t && (magnitude (p0 .-. lp) > 0.0001)
               then [p0]
               else mempty
   where vertices = concat $ zipWith segVertices
-                   (trailVertices p0 t) (trailSegments t ++ [straight (0 & 0)])
-        lp = last $ trailVertices p0 t
+                   (trailVertices lt) (trailSegments t ++ [straight (0 ^& 0)])
+        lp = last $ trailVertices lt
 
-segVertices :: P2 -> Segment R2 -> [P2]
+segVertices :: P2 -> Segment Closed R2 -> [P2]
 segVertices p (D.Linear _) = [p]
 segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
   i = 1/30
@@ -246,6 +248,7 @@ instance Backend OpenGL R2 where
                            { bgColor :: AlphaColour Double -- ^ The clear color for the window
                            }
                          deriving Show
+
   withStyle _ s _ (GlRen b p) =
       GlRen b $ do
         mapM_ ($ s)
@@ -261,7 +264,7 @@ instance Backend OpenGL R2 where
           ]
         p
 
--- | The OpenGL backend expects doRender to be called in a loop.
+--   The OpenGL backend expects doRender to be called in a loop.
 --   Ideally, most of the work would be done on the first rendering,
 --   and subsequent renderings should require very little CPU computation
   doRender _ o (GlRen b p) = do
@@ -286,15 +289,15 @@ instance Renderable (Path R2) OpenGL where
   render _ = renderPath
 
 instance Renderable (Trail R2) OpenGL where
-  render c t = render c $ Path [(p2 (0,0), t)]
+  render c t = render c $ Path [(t `at` origin)]
 
-instance Renderable (Segment R2) OpenGL where
-  render c = render c . flip Trail False . (:[])
+instance Renderable (Segment Closed R2) OpenGL where
+  render c = render c . trailFromSegments . (:[])
 
-dimensions :: QDiagram b R2 m -> (Double, Double)
+dimensions :: Monoid' m => QDiagram b R2 m -> (Double, Double)
 dimensions = unr2 . boxExtents . boundingBox
 
-aspectRatio :: QDiagram b R2 m -> Double
+aspectRatio :: Monoid' m => QDiagram b R2 m -> Double
 aspectRatio = uncurry (/) . dimensions
 
 inclusiveOrtho :: BoundingBox R2 -> IO ()
@@ -327,10 +330,10 @@ changeFillColor s =
 
 changeOpacity :: Style v -> GLRenderM ()
 changeOpacity s =
-  case op of
+  case opa of
     Just o -> modify $ \st -> st{currentOpacity = o}
     Nothing           -> return ()
- where op =  getOpacity <$> getAttr s
+ where opa =  getOpacity <$> getAttr s
 
 changeLineWidth :: Style v -> GLRenderM ()
 changeLineWidth s =
@@ -382,4 +385,4 @@ changeClip s =
         }
     Just _       -> return ()
     Nothing      -> return ()
- where clip = getClip <$> getAttr s
+ where clip = op Clip <$> getAttr s

@@ -1,5 +1,5 @@
 Name:                diagrams-opengl
-Version:             0.6.1
+Version:             1.0
 Synopsis:            OpenGL backend for diagrams drawing EDSL.
 Homepage:            http://projects.haskell.org/diagrams/
 License:             BSD3
@@ -40,18 +40,19 @@ Library
   Other-modules:       Graphics.Rendering.Util 
   Hs-source-dirs:      src
   Build-depends:       base          >= 4.3   && < 4.7
-                     , vector-space  >= 0.7   && < 0.9
-                     , colour
-                     , diagrams-core >= 0.6.1   && < 0.7
-                     , diagrams-lib  >= 0.6   && < 0.7
-                     , monoid-extras >= 0.2   && < 0.3
-                     , cmdargs       >= 0.6   && < 0.11
-                     , OpenGL        >= 2.6   && < 2.9
-                     , vector        >= 0.10  && < 0.11
-                     , containers    >= 0.4   && < 0.6
                      , GLUT          >= 2.3   && < 2.5
-                     , semigroups    >= 0.3.4 && < 0.10
+                     , OpenGL        >= 2.6   && < 2.9
+                     , cmdargs       >= 0.6   && < 0.11
+                     , colour
+                     , containers    >= 0.4   && < 0.6
+                     , diagrams-core >= 1.0   && < 1.1
+                     , diagrams-lib  >= 1.0   && < 1.1
+                     , lens          >= 3.9   && < 3.11
+                     , monoid-extras >= 0.3   && < 0.4
                      , mtl           >= 1     && < 2.2
+                     , semigroups    >= 0.3.4 && < 0.13
+                     , vector        >= 0.10  && < 0.11
+                     , vector-space  >= 0.7   && < 0.9
   if !os(windows)
     cpp-options: -DCMDLINELOOP
     Build-depends:     unix >= 2.4 && < 2.7
