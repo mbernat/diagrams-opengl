@@ -8,6 +8,7 @@
 module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..) ) where
 
 -- General  Haskell
+import           Control.Lens ((^.))
 import           Control.Monad.State
 import           Data.Semigroup
 import           Data.Tuple
@@ -86,7 +87,7 @@ calcCap lwf lcap (p0, p1) =
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
-      trlVertices $ (arcT (Rad $ -tau/4) (Rad $ tau/4)
+      trlVertices $ (arcT (-tau/4 @@ rad) (tau/4 @@ rad)
                              # D.scale (r2f lwf/2) # D.rotate angle) `at` p1 .+^ c
     LineCapSquare -> [ p1 .+^ c
                      , p1 .-^ c
@@ -95,8 +96,7 @@ calcCap lwf lcap (p0, p1) =
                      ]
  where vec   = p1 .-. p0
        norm  = normalized vec ^* (lwf/2)
-       c = D.rotate (-tau/4 :: Rad) norm
-       angle :: Rad
+       c = D.rotate (-tau/4 @@ rad) norm
        angle = direction vec
 
 calcJoin :: LineJoin
@@ -109,8 +109,8 @@ calcJoin lj lwf (p0, p1, p3) =
                        then bevel
                        else spikeJoin
     LineJoinRound -> (p1:) $ case side of
-      1 -> trlVertices $ (arc' (lwf/2) (direction v1 :: Rad) (direction v2)) `at` p1 .+^ v1
-      _ -> trlVertices $ (arc' (lwf/2) (direction v2 :: Rad) (direction v1)) `at` p1 .+^ v2
+      1 -> trlVertices $ (arc' (lwf/2) (direction v1) (direction v2)) `at` p1 .+^ v1
+      _ -> trlVertices $ (arc' (lwf/2) (direction v2) (direction v1)) `at` p1 .+^ v2
     LineJoinBevel -> bevel
  where norm1       = normalized (p1 .-. p0) ^* (lwf/2)
        norm2       = normalized (p3 .-. p1) ^* (lwf/2)
@@ -118,15 +118,15 @@ calcJoin lj lwf (p0, p1, p3) =
                        then  1
                        else -1
        v1 :: R2
-       v1          = D.rotate (side * (-tau/4)::Rad) norm1
+       v1          = D.rotate (side * (-tau/4) @@ rad) norm1
        v2 :: R2
-       v2          = D.rotate (side * (-tau/4)::Rad) norm2
+       v2          = D.rotate (side * (-tau/4) @@ rad) norm2
        bevel       = [ p1 .+^ v1
                      , p1 .+^ v2
                      , p1
                      ]
        spikeAngle  = (direction v1 - direction v2) / 2
-       spikeLength = (lwf/2) / cos (op Rad spikeAngle)
+       spikeLength = (lwf/2) / cos (spikeAngle^.rad)
        v3 :: R2
        v3          = D.rotate (direction v1 - spikeAngle) unitX ^* spikeLength
        spikeJoin   = [ p1 .+^ v1
@@ -150,7 +150,7 @@ calcLine lwf (p0, p1) =
   ]
  where vec   = p1 .-. p0
        norm  = normalized vec ^* (lwf/2)
-       c = D.rotate (-tau/4 :: Rad) norm
+       c = D.rotate (-tau/4 @@ rad) norm
 
 renderPath :: Path R2 -> Render OpenGL R2
 renderPath p@(Path trs) =
