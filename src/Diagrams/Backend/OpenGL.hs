@@ -125,10 +125,10 @@ calcJoin lj lwf (p0, p1, p3) =
                      , p1 .+^ v2
                      , p1
                      ]
-       spikeAngle  = (direction v1 - direction v2) / 2
+       spikeAngle  = (direction v1 ^-^ direction v2) ^/ 2
        spikeLength = (lwf/2) / cos (spikeAngle^.rad)
        v3 :: R2
-       v3          = D.rotate (direction v1 - spikeAngle) unitX ^* spikeLength
+       v3          = D.rotate (direction v1 ^-^ spikeAngle) unitX ^* spikeLength
        spikeJoin   = [ p1 .+^ v1
                      , p1 .+^ v3
                      , p1 .+^ v2
