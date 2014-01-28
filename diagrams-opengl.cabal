@@ -37,7 +37,10 @@ Source-repository head
 Library
   Exposed-modules:     Diagrams.Backend.OpenGL
                        Diagrams.Backend.OpenGL.CmdLine
-  Other-modules:       Graphics.Rendering.Util 
+  Other-modules:       Graphics.Rendering.Util
+                       Diagrams.Backend.OpenGL.TwoD.Attributes
+                       Diagrams.Backend.OpenGL.TwoD.Outlines
+                       Diagrams.Backend.OpenGL.TwoD.Tesselate
   Hs-source-dirs:      src
   Build-depends:       base          >= 4.3   && < 4.7
                      , GLUT          >= 2.3   && < 2.5
