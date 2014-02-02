@@ -66,10 +66,6 @@ bindVao vb = do
 --   TODO be more correct about color space
 glColor :: (Real a, Floating a, Fractional b) => AlphaColour a -> Color4 b
 glColor c = Color4 r g b a where
-  -- rgb = toSRGB c
-  -- r = realToFrac $ channelRed rgb
-  -- g = realToFrac $ channelGreen rgb
-  -- b = realToFrac $ channelBlue rgb
   (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
 drawOGL :: NumComponents -> GlPrim -> IO ()
