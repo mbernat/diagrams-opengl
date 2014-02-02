@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ViewPatterns               #-}
@@ -14,6 +15,9 @@ import qualified Data.Vector.Storable as V
 
 -- Graphics
 import           Graphics.Rendering.OpenGL as GL
+import qualified Graphics.UI.GLFW as GLFW
+import Data.Vinyl
+import qualified Linear as L
 
 -- From Diagrams
 import           Diagrams.BoundingBox
@@ -38,8 +42,8 @@ renderPath p@(Path trs) =
     darr <- gets currentDashArray
     clip <- gets currentClip
     put initialGLRenderState
-    return $
-      map (renderPolygon _fc o) (clippedPolygons (simplePolygons fr) clip) <>
+    return . mconcat $
+      map (renderPolygon _fc o) (clippedPolygons (simplePolygons fr) clip) ++
       map (renderPolygon _lc o) (clippedPolygons (linePolygons darr _lw lcap lj) clip)
  where trails                  = map trlVertices trs
        simplePolygons fr       = tessRegion fr trails
@@ -52,8 +56,12 @@ renderPath p@(Path trs) =
        box = boundingBox p
 
 renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
-renderPolygon c o ps = GlPrim TriangleFan (dissolve o c) vertices
-  where vertices = V.fromList $ concatMap flatP2 ps
+renderPolygon c o ps = GlPrim (zipRecs vertices colors) elements
+  where
+    vertices = map (coord2d =:) . map p2ToV2 $ ps
+    colors = repeat $ vColor =: (v4Color $ dissolve o c)
+    lastElement = fromIntegral (length vertices) - 2
+    elements = concat [[0, i, i+1] | i <- [1..lastElement]]
 
 flatP2 :: (Fractional a, Num a) => P2 -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
@@ -75,8 +83,8 @@ initialGLRenderState = GLRenderState
                             []
 
 instance Backend OpenGL R2 where
-  data Render OpenGL R2 = GlRen (BoundingBox R2) (GLRenderM [GlPrim])
-  type Result OpenGL R2 = IO ()
+  data Render OpenGL R2 = GlRen (BoundingBox R2) (GLRenderM GlPrim)
+  type Result OpenGL R2 = IO (GLFW.Window -> IO ())
   data Options OpenGL R2 = GlOptions
                            { bgColor :: AlphaColour Double -- ^ The clear color for the window
                            }
@@ -101,17 +109,15 @@ instance Backend OpenGL R2 where
 --   Ideally, most of the work would be done on the first rendering,
 --   and subsequent renderings should require very little CPU computation
   doRender _ o (GlRen b p) = do
+    -- Boring OpenGL init
     clearColor $= glColor (bgColor o)
-    clear [ColorBuffer]
-    matrixMode $= Modelview 0
-    loadIdentity
-    inclusiveOrtho b
-    let ps = evalState p initialGLRenderState
-    -- GL.polygonMode $= (GL.Line, GL.Line)
     GL.blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    mapM_ (drawOGL 2) ps
-    flush
+    -- collect all the prims into GPU buffers
+    let ps = evalState p initialGLRenderState
+    resources <- initResources ps
+    -- return an action which will redraw
+    return (draw (inclusiveOrtho b) resources)
 
 instance Monoid (Render OpenGL R2) where
   mempty = GlRen emptyBox $ return mempty
@@ -133,12 +139,12 @@ dimensions = unr2 . boxExtents . boundingBox
 aspectRatio :: Monoid' m => QDiagram b R2 m -> Double
 aspectRatio = uncurry (/) . dimensions
 
-inclusiveOrtho :: BoundingBox R2 -> IO ()
-inclusiveOrtho b = ortho x0 x1 y0 y1 z0 z1 where
+inclusiveOrtho :: BoundingBox R2 -> Int -> Int -> PlainRec '[MVP]
+inclusiveOrtho b w h = mvp =: L.mkTransformationMat scl trns where
   defaultBounds = (p2 (-1,-1), p2 (1,1))
-  ext      = unr2 $ boxExtents b
   (ll, ur) = maybe defaultBounds id $ getCorners b
-  (x0, y0) = r2fPr $ unp2 ll - 0.05 * ext
-  (x1, y1) = r2fPr $ unp2 ur + 0.05 * ext
-  z0 = 0
-  z1 = 1
+  trns = p2ToV3 (centroid [ll, ur]) L.^* (-1)
+  ext = ur .-. ll
+  scl = diagonalMatrix $ aspectScale  / r2ToV3 ext
+  aspect = fi w / fi h
+  aspectScale = L.V3 (2 / max 1 aspect) (2 / max 1 (1/aspect)) 1

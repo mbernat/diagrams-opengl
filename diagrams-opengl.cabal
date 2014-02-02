@@ -38,25 +38,30 @@ Library
   Exposed-modules:     Diagrams.Backend.OpenGL
                        Diagrams.Backend.OpenGL.CmdLine
   Other-modules:       Graphics.Rendering.Util
+                       Graphics.Rendering.Util.GLFW
                        Diagrams.Backend.OpenGL.TwoD.Attributes
                        Diagrams.Backend.OpenGL.TwoD.Outlines
                        Diagrams.Backend.OpenGL.TwoD.Tesselate
   Hs-source-dirs:      src
   Build-depends:       base          >= 4.3   && < 4.7
-                     , GLUT          >= 2.3   && < 2.5
-                     , OpenGL        >= 2.6   && < 2.9
+                     , OpenGL        >= 2.9   && < 2.10
                      , cmdargs       >= 0.6   && < 0.11
                      , colour
                      , containers    >= 0.4   && < 0.6
                      , diagrams-core >= 1.0   && < 1.1
                      , diagrams-lib  >= 1.0   && < 1.1
-                     , lens          >= 3.9   && < 3.11
+                     , lens          >= 3.9   && < 4.1
                      , monoid-extras >= 0.3   && < 0.4
                      , mtl           >= 1     && < 2.2
                      , semigroups    >= 0.3.4 && < 0.13
                      , vector        >= 0.10  && < 0.11
                      , vector-space  >= 0.7   && < 0.9
-                     , lens          >= 3.9   && < 3.11
+                     , GLUtil >= 0.7 && < 0.8
+                     , GLFW-b >= 1.0 && < 2.0
+                     , filepath >= 1.3 && < 1.4
+                     , linear >= 1.3 && < 1.4
+                     , vinyl-gl >= 0.1 && < 0.2
+                     , vinyl >= 0.2 && < 0.3
                      
   if !os(windows)
     cpp-options: -DCMDLINELOOP

@@ -4,3 +4,5 @@
 dist/
 *_flymake.hs
 cabal-dev/
+/.cabal-sandbox
+/cabal.sandbox.config

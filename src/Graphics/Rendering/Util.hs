@@ -1,66 +1,56 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
+
 module Graphics.Rendering.Util where
 
 -- Wrap OpenGL calls in a slightly more declarative syntax
 -- TODO more consistent naming
 
 import Data.Colour
-import Foreign.Ptr
-import Foreign.Storable
-import System.IO
-import qualified Data.Vector.Storable as V
+import           System.FilePath ((</>))
 
 import Diagrams.Attributes
+import Diagrams.TwoD.Types
+import Diagrams.ThreeD.Types
+
 import Graphics.Rendering.OpenGL
 
-data GlPrim = GlPrim {
-  primMode  :: PrimitiveMode,
-  primColor :: (AlphaColour Double),
-  primVec   :: (V.Vector GLfloat) }
+import Data.Semigroup
+import Data.Vinyl
+import Control.Applicative
+import qualified Linear as L
 
-instance Show GlPrim where
-  show (GlPrim mode c v) = concat ["GlPrim ", show mode, " ", show c, " ", show v]
+import Graphics.VinylGL
+import Graphics.GLUtil
+import Graphics.UI.GLFW
 
-initProgram :: String -> String -> IO Program
-initProgram v f = do
-  [vSh] <-  genObjectNames 1
-  [fSh] <- genObjectNames 1
-  shaderSource vSh $= [v]
-  shaderSource fSh $= [f]
-  compileShader vSh
-  compileShader fSh
+type Coord2d = "coord2d" ::: L.V2 GLfloat
+type VColor  = "v_color" ::: L.V4 GLfloat
+type MVP     = "mvp" ::: L.M44 GLfloat
 
-  [shProg] <- genObjectNames 1
-  attachedShaders shProg $= ([vSh], [fSh])
-  linkProgram shProg
-  return shProg
+coord2d = Field :: Coord2d
+vColor  = Field :: VColor
+mvp     = Field :: MVP
 
--- | Load a vertex shader and a fragment shader from the specified files
-loadShaders :: String -> String -> IO Program
-loadShaders vFile fFile = do
-  withFile vFile ReadMode $ \vHandle -> do
-    withFile fFile ReadMode $ \fHandle -> do
-      vText <- hGetContents vHandle
-      fText <- hGetContents fHandle
-      initProgram vText fText
+data GlPrim = GlPrim { vertices :: [PlainRec [Coord2d, VColor]]
+                     , elements :: [GLuint]
+                     }
 
--- TODO wrap output with info about length, foor use in render
-initGeometry :: Storable a => V.Vector a -> IO BufferObject
-initGeometry tris = do
-  [vbo] <- genObjectNames 1
-  bindBuffer ArrayBuffer $= Just vbo
-  let len = fromIntegral $ V.length tris  * sizeOf (V.head tris)
-  V.unsafeWith tris $ \ptr ->
-    bufferData ArrayBuffer $= (len, ptr, StaticDraw)
-  return vbo
+data Resources = Resources { shaderProgram :: ShaderProgram
+                           , buffer :: BufferedVertices [Coord2d, VColor]
+                           , elementBuffer :: BufferObject
+                           , elementCount :: GLsizei
+                           }
 
-bindVao :: BufferObject -> IO VertexArrayObject
-bindVao vb = do
-  [vao] <- genObjectNames 1
-  bindVertexArrayObject $= Just vao
-  vertexAttribArray (AttribLocation 0)  $= Enabled
-  bindBuffer ArrayBuffer $= Just vb
-  vertexAttribPointer (AttribLocation 0) $= (ToFloat, VertexArrayDescriptor 3 Float 0 nullPtr)
-  return vao
+instance Semigroup GlPrim where
+    GlPrim v1 e1 <> GlPrim v2 e2 = GlPrim (v1 ++ v2) (e1 ++ e2') where
+      e2' = map (+ (fromIntegral $ length v1)) e2
+
+instance Monoid GlPrim where
+    mappend = (<>)
+    mempty  = GlPrim [] []
 
 -- | Convert a haskell / diagrams color to OpenGL
 --   TODO be more correct about color space
@@ -68,19 +58,35 @@ glColor :: (Real a, Floating a, Fractional b) => AlphaColour a -> Color4 b
 glColor c = Color4 r g b a where
   (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
-drawOGL :: NumComponents -> GlPrim -> IO ()
-drawOGL dims (GlPrim mode c v) = draw dims mode c v
+v4Color :: (Real a, Floating a, Fractional b) => AlphaColour a -> L.V4 b
+v4Color c = L.V4 r g b a where
+  (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
--- | The first argument is the number of coördinates given for each vertex
---   2 and 3 are readily interpreted; 4 indicates homogeneous 3D coördinates
-draw :: (Real c, Floating c) => NumComponents -> PrimitiveMode -> AlphaColour c -> V.Vector GLfloat -> IO ()
-draw dims mode c pts = do
-  color $ (glColor c :: Color4 GLfloat) -- all vertices same color
-  V.unsafeWith pts $ \ptr -> do
-    arrayPointer VertexArray $= VertexArrayDescriptor dims Float 0 ptr
+initResources :: GlPrim -> IO Resources
+initResources ps = do
+    let v = shaderPath </> "util.v.glsl"
+        f = shaderPath </> "util.f.glsl"
+    Resources <$> simpleShaderProgram v f
+              <*> bufferVertices (vertices ps)
+              <*> fromSource ElementArrayBuffer (elements ps)
+              <*> (pure . fromIntegral . length . elements $ ps)
 
-  drawArrays mode 0 ptCount where
-    ptCount = fromIntegral $ V.length pts `quot` (fromIntegral dims)
+draw :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Window -> IO ()
+draw m (Resources s vb e ct) win = do
+    clear [ColorBuffer]
+    -- get some state for the transforms
+    (width, height) <- getFramebufferSize win
+    viewport $= (Position 0 0, Size (fromIntegral width) (fromIntegral height))
+    -- actually set up OpenGL
+    currentProgram $= (Just $ program s)
+    enableVertices' s vb
+    bindVertices vb
+    setAllUniforms s $ m width height
+    bindBuffer ElementArrayBuffer $= Just e
+    drawIndexedTris ct
+
+fi :: (Integral a, Num b) => a -> b
+fi = fromIntegral
 
 r2f :: (Real r, Fractional f) => r -> f
 r2f x = realToFrac x
@@ -90,3 +96,28 @@ r2fPr (a,b) = (r2f a, r2f b)
 
 r2fQuad :: (Real r, Fractional f) => (r,r,r,r) -> (f,f,f,f)
 r2fQuad (a,b,c,d) = (r2f a, r2f b, r2f c, r2f d)
+
+shaderPath :: FilePath
+shaderPath = "src/Graphics/Rendering/"
+
+r2ToV2 :: R2 -> L.V2 GLfloat
+r2ToV2 (unr2 -> (x, y)) = L.V2 (r2f x) (r2f y)
+
+p2ToV2 :: P2 -> L.V2 GLfloat
+p2ToV2 (unp2 -> (x, y)) = L.V2 (r2f x) (r2f y)
+
+r2ToV3 :: R2 -> L.V3 GLfloat
+r2ToV3 (unr2 -> (x, y)) = L.V3 (r2f x) (r2f y) 0
+
+p2ToV3 :: P2 -> L.V3 GLfloat
+p2ToV3 (unp2 -> (x, y)) = L.V3 (r2f x) (r2f y) 0
+
+r3ToV3 :: R3 -> L.V3 GLfloat
+r3ToV3 (unr3 -> (x, y, z)) = L.V3 (r2f x) (r2f y) (r2f z)
+
+diagonalMatrix :: Real r => L.V3 r -> L.M33 GLfloat
+diagonalMatrix (L.V3 x y z) = L.V3 (L.V3 (r2f x) 0 0) (L.V3 0 (r2f y) 0) (L.V3 0 0 (r2f z))
+
+--zipRecs :: [Rec as f] -> [Rec bs f] -> [Rec (as ++ bs) f]
+zipRecs :: [PlainRec as] -> [PlainRec bs] -> [PlainRec (as ++ bs)]
+zipRecs = zipWith (<+>)
