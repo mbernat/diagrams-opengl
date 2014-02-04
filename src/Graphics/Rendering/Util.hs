@@ -30,9 +30,14 @@ type Coord2d = "coord2d" ::: L.V2 GLfloat
 type VColor  = "v_color" ::: L.V4 GLfloat
 type MVP     = "mvp" ::: L.M44 GLfloat
 
-coord2d = Field :: Coord2d
-vColor  = Field :: VColor
-mvp     = Field :: MVP
+coord2d :: Coord2d
+coord2d = Field
+
+vColor :: VColor
+vColor  = Field
+
+mvp :: MVP
+mvp     = Field
 
 data GlPrim = GlPrim { vertices :: [PlainRec [Coord2d, VColor]]
                      , elements :: [GLuint]
