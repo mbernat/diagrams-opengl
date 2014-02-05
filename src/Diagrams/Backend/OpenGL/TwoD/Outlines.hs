@@ -1,6 +1,6 @@
 {-# LANGUAGE ViewPatterns               #-}
 
-module Diagrams.Backend.OpenGL.TwoD.Outlines where
+module Diagrams.Backend.OpenGL.TwoD.Outlines ( calcLines, trlVertices ) where
 
 -- General  Haskell
 import           Control.Lens ((^.))
@@ -13,6 +13,7 @@ import           Graphics.Rendering.Util
 
 {- calculate drawn outlines of styled lines -}
 
+-- | calcLines is the sole entry point for this module
 calcLines :: [Double]  -- ^ Dashing pattern, first element of Dashing type
              -> Double -- ^ Line Width
              -> LineCap

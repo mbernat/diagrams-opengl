@@ -31,29 +31,33 @@ import           Diagrams.Backend.OpenGL.TwoD.Tesselate
 
 renderPath :: Path R2 -> Render OpenGL R2
 renderPath p@(Path trs) =
-  GlRen box $ do
+  GlRen (boundingBox p) $ do
     _fc <- gets currentFillColor
     _lc <- gets currentLineColor
-    o <- gets currentOpacity
-    fr <- gets currentFillRule
+    _o <- gets currentOpacity
+    _fr <- gets currentFillRule
     _lw <- gets currentLineWidth
-    lcap <- gets currentLineCap
-    lj <- gets currentLineJoin
-    darr <- gets currentDashArray
-    clip <- gets currentClip
+    _lcap <- gets currentLineCap
+    _lj <- gets currentLineJoin
+    _darr <- gets currentDashArray
+    _clip <- gets currentClip
     put initialGLRenderState
-    return . mconcat $
-      map (renderPolygon _fc o) (clippedPolygons (simplePolygons fr) clip) ++
-      map (renderPolygon _lc o) (clippedPolygons (linePolygons darr _lw lcap lj) clip)
- where trails                  = map trlVertices trs
-       simplePolygons fr       = tessRegion fr trails
+    let
+        trails                  = map trlVertices trs
+        simplePolygons          = tessRegion _fr trails
 
-       linePolygons :: [Double] -> Double -> LineCap -> LineJoin -> [[P2]]
-       linePolygons darr _lw lcap lj = concatMap (calcLines darr _lw lcap lj) trails
+        linePolygons :: [[P2]]
+        linePolygons = concatMap (calcLines _darr _lw _lcap _lj) trails
 
-       clippedPolygons vis [] = vis
-       clippedPolygons vis clip = concatMap (tessRegion TessWindingAbsGeqTwo . (: clip)) vis
-       box = boundingBox p
+        clippedPolygons vis =
+            case _clip of
+                [] -> vis
+                clip ->
+                    concatMap (tessRegion TessWindingAbsGeqTwo . (: clip)) vis
+        in
+     return . mconcat $
+       map (renderPolygon _fc _o) (clippedPolygons simplePolygons) ++
+       map (renderPolygon _lc _o) (clippedPolygons linePolygons)
 
 renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
 renderPolygon c o ps = GlPrim (zipRecs vertices colors) elements
