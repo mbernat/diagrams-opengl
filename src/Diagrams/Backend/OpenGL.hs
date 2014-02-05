@@ -46,24 +46,24 @@ renderPath p@(Path trs) =
         trails                  = map trlVertices trs
         simplePolygons          = tessRegion _fr trails
 
-        linePolygons :: [[P2]]
+        linePolygons :: [Convex]
         linePolygons = concatMap (calcLines _darr _lw _lcap _lj) trails
 
-        clippedPolygons vis =
-            case _clip of
-                [] -> vis
-                clip ->
-                    concatMap (tessRegion TessWindingAbsGeqTwo . (: clip)) vis
+        clippedPolygons :: [Convex] -> [Convex]
+        clippedPolygons vis
+            | null _clip = vis
+            | otherwise =
+                concatMap (tessRegion TessWindingAbsGeqTwo . (: map unConvex _clip) . unConvex) vis
         in
      return . mconcat $
-       map (renderPolygon _fc _o) (clippedPolygons simplePolygons) ++
-       map (renderPolygon _lc _o) (clippedPolygons linePolygons)
+       map (renderPolygon $ dissolve _o _fc) (clippedPolygons simplePolygons) ++
+       map (renderPolygon $ dissolve _o _lc) (clippedPolygons linePolygons)
 
-renderPolygon :: AlphaColour Double -> Double -> [P2] -> GlPrim
-renderPolygon c o ps = GlPrim (zipRecs vertices colors) elements
+renderPolygon :: AlphaColour Double -> Convex -> GlPrim
+renderPolygon c (Convex ps) = GlPrim (zipRecs vertices colors) elements
   where
     vertices = map (coord2d =:) . map p2ToV2 $ ps
-    colors = repeat $ vColor =: (v4Color $ dissolve o c)
+    colors = repeat $ vColor =: (v4Color c)
     lastElement = fromIntegral (length vertices) - 2
     elements = concat [[0, i, i+1] | i <- [1..lastElement]]
 

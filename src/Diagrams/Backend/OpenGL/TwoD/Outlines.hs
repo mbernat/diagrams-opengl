@@ -1,6 +1,8 @@
 {-# LANGUAGE ViewPatterns               #-}
 
-module Diagrams.Backend.OpenGL.TwoD.Outlines ( calcLines, trlVertices ) where
+module Diagrams.Backend.OpenGL.TwoD.Outlines
+       ( calcLines, trlVertices, Convex(..) )
+       where
 
 -- General  Haskell
 import           Control.Lens ((^.))
@@ -13,14 +15,16 @@ import           Graphics.Rendering.Util
 
 {- calculate drawn outlines of styled lines -}
 
+newtype Convex = Convex { unConvex :: [P2] }
+
 -- | calcLines is the sole entry point for this module
 calcLines :: [Double]  -- ^ Dashing pattern, first element of Dashing type
              -> Double -- ^ Line Width
              -> LineCap
              -> LineJoin
              -> [P2]  -- ^ Points from a single Trail, with curves already linearized
-             -> [[P2]] -- ^ Each inner list is the outline of a (convex) polygon
-calcLines darr lwf lcap lj ps@(_:_:_) =
+             -> [Convex] -- ^ Each inner list is the outline of a (convex) polygon
+calcLines darr lwf lcap lj ps@(_:_:_) = map Convex $
   case darr of
     []    -> map (calcLine lwf) strokedLines <>
              map (calcJoin lj lwf) joins

@@ -6,10 +6,11 @@ module Diagrams.Backend.OpenGL.TwoD.Tesselate
 import           System.IO.Unsafe
 import Diagrams.Prelude
 import Graphics.Rendering.OpenGL
+import Diagrams.Backend.OpenGL.TwoD.Outlines (Convex(..))
 import Graphics.Rendering.Util
 
-tessRegion :: TessWinding -> [[P2]] -> [[P2]]
-tessRegion fr trs = renderTriangulation $ unsafePerformIO $
+tessRegion :: TessWinding -> [[P2]] -> [Convex]
+tessRegion fr trs = map Convex . renderTriangulation . unsafePerformIO $
   triangulate fr 0.0001 (Normal3 0 0 0)
     (\_ _ -> 0) $
     ComplexPolygon [ComplexContour (map createVertex trail) | trail <- trs]

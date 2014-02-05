@@ -19,7 +19,7 @@ import           Data.Colour.SRGB as C
 import           Diagrams.Prelude as D hiding (Attribute)
 import           Diagrams.TwoD.Path
 
-import Diagrams.Backend.OpenGL.TwoD.Outlines (trlVertices)
+import Diagrams.Backend.OpenGL.TwoD.Outlines (trlVertices, Convex(..))
 import Diagrams.Backend.OpenGL.TwoD.Tesselate
 
 type GLRenderM a = State GLRenderState a
@@ -34,7 +34,7 @@ data GLRenderState =
                , currentFillRule   :: TessWinding
                , currentDashArray  :: [Double]
                , currentDashOffset :: Double
-               , currentClip       :: [[P2]]
+               , currentClip       :: [Convex]
                }
 
 {- Style changes -}
