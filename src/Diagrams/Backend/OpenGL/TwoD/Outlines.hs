@@ -17,22 +17,22 @@ import           Graphics.Rendering.Util
 
 newtype Convex = Convex { unConvex :: [P2] }
 
--- | calcLines is the sole entry point for this module
+-- | calcLines is (nearly) the sole entry point for this module
 calcLines :: [Double]  -- ^ Dashing pattern, first element of Dashing type
              -> Double -- ^ Line Width
              -> LineCap
              -> LineJoin
              -> [P2]  -- ^ Points from a single Trail, with curves already linearized
              -> [Convex] -- ^ Each inner list is the outline of a (convex) polygon
-calcLines darr lwf lcap lj ps@(_:_:_) = map Convex $
+calcLines darr lwf lcap lj ps@(_:_:_) =
   case darr of
     []    -> map (calcLine lwf) strokedLines <>
              map (calcJoin lj lwf) joins
-    (_:_) -> calcDashedLines (cycle darr) False lwf lcap lj strokedLines
-  <> if dist < 0.0001
-     then [calcJoin lj lwf (pup, fp, sp)]
-     else [calcCap lwf lcap $ swap $ head strokedLines] <>
-          [calcCap lwf lcap $ last strokedLines]
+    _     -> calcDashedLines (cycle darr) False lwf lcap lj strokedLines
+             <> if dist < 0.0001
+                then [calcJoin lj lwf (pup, fp, sp)]
+                else [calcCap lwf lcap $ swap $ head strokedLines] <>
+                     [calcCap lwf lcap $ last strokedLines]
  where strokedLines = zip  ps (tail ps)
        joins = zip3 ps (tail ps) (tail $ tail ps)
        pup   = ps !! (length ps - 2)
@@ -48,7 +48,7 @@ calcDashedLines :: [Double] -- ^ Dashing pattern, first element of Dashing type
                    -> LineCap
                    -> LineJoin
                    -> [(P2, P2)] -- ^ Line segments, defined by their endpoints
-                   -> [[P2]] -- ^ Each inner list is the outline of a (convex) polygon
+                   -> [Convex] -- ^ Each inner list is the outline of a (convex) polygon
 calcDashedLines (d:ds) hole lwf lcap lj ((p0, p1):ps) =
   if hole
   then if len >= d
@@ -69,8 +69,8 @@ calcDashedLines _ _ _ _ _ _ = mempty
 calcCap :: Double -- ^ Line Width
            -> LineCap
            -> (P2, P2) -- ^ Endpoints of final line segment
-           -> [P2] -- ^ The outline of the line's end cap
-calcCap lwf lcap (p0, p1) =
+           -> Convex -- ^ The outline of the line's end cap
+calcCap lwf lcap (p0, p1) = Convex $
   case lcap of
     LineCapButt   -> mempty
     LineCapRound  ->
@@ -89,8 +89,8 @@ calcCap lwf lcap (p0, p1) =
 calcJoin :: LineJoin
             -> Double -- ^ Line Width
             -> (P2, P2, P2) -- ^ Two line segments meeting at the middle point
-            -> [P2]
-calcJoin lj lwf (p0, p1, p3) =
+            -> Convex
+calcJoin lj lwf (p0, p1, p3) = Convex $
   case lj of
     LineJoinMiter -> if abs spikeLength > 10 * lwf
                        then bevel
@@ -126,8 +126,8 @@ calcJoin lj lwf (p0, p1, p3) =
        detV (unr2 -> (x1,y1)) (unr2 -> (x2,y2)) = x1 * y2 - y1 * x2
 
 
-calcLine :: Double -> (P2, P2) -> [P2]
-calcLine lwf (p0, p1) =
+calcLine :: Double -> (P2, P2) -> Convex
+calcLine lwf (p0, p1) = Convex
   [ p0 .-^ c
   , p0
   , p0 .+^ c
