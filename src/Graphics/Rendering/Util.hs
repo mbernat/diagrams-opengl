@@ -78,7 +78,7 @@ initResources ps = do
 
 unknitResources :: Resources -> IO ()
 unknitResources (Resources sp (BufferedVertices vbo) ebo _) = do
-    deleteObjectNames [vbo, ebo] 
+    deleteObjectNames [vbo, ebo]
     deleteObjectName $ program sp
 
 draw :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Window -> IO ()
@@ -100,6 +100,7 @@ draw m (Resources s vb e ct) win = do
 -- used somewhere outside of a diagrams context.
 draw' :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Size -> IO ()
 draw' m (Resources s vb e ct) size@(Size width height) = do
+    clearColor $= Color4 0 0 0 0
     clear [ColorBuffer]
     viewport $= (Position 0 0, size)
     -- actually set up OpenGL

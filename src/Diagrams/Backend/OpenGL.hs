@@ -155,7 +155,7 @@ inclusiveOrtho b w h = mvp =: L.mkTransformationMat scl trns where
   aspectScale = L.V3 (2 / max 1 aspect) (2 / max 1 (1/aspect)) 1
 
 -- | Renders the diagram into a framebuffer texture.
-diagramToTexture :: (Monoid m, Semigroup m) => Size -> Options OpenGL R2 -> QDiagram OpenGL R2 m -> IO TextureObject
+diagramToTexture :: Size -> Options OpenGL R2 -> Diagram OpenGL R2 -> IO TextureObject
 diagramToTexture s@(Size w h) opts d = do
     -- Generate a framebuffer object
     fb <- genObjectName
@@ -171,7 +171,7 @@ diagramToTexture s@(Size w h) opts d = do
         RGBA'
         (TextureSize2D w h)
         0
-        (PixelData RGB UnsignedByte nullPtr)
+        (PixelData RGBA UnsignedByte nullPtr)
     -- Attach!
     framebufferTexture2D Framebuffer (ColorAttachment 0) Texture2D tex 0
     -- Check for failure.
