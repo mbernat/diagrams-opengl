@@ -191,25 +191,10 @@ renderDiagram :: (Semigroup m, Monoid m) => Size -> OpenGL -> Options OpenGL R2 
 renderDiagram s b opts d = do
     let (_, d')   = adjustDia b opts d
         (GlRen box p) = renderData b d'
-
     -- collect all the prims into GPU buffers
     let ps = evalState p initialGLRenderState
     resources <- initResources ps
-
     -- Draw the diagram into the currently setup and bound context
     draw' (inclusiveOrtho box) resources s
-
     unknitResources resources
-
-
---doRender _ o (GlRen b p) = do
---    -- Boring OpenGL init
---    clearColor $= glColor (bgColor o)
---    GL.blend $= Enabled
---    blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
---    -- collect all the prims into GPU buffers
---    let ps = evalState p initialGLRenderState
---    resources <- initResources ps
---    -- return an action which will redraw
---    return (draw (inclusiveOrtho b) resources)
 
