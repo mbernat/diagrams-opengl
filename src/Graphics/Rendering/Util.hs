@@ -76,6 +76,11 @@ initResources ps = do
               <*> fromSource ElementArrayBuffer (elements ps)
               <*> (pure . fromIntegral . length . elements $ ps)
 
+unknitResources :: Resources -> IO ()
+unknitResources (Resources sp (BufferedVertices vbo) ebo _) = do
+    deleteObjectNames [vbo, ebo] 
+    deleteObjectName $ program sp
+
 draw :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Window -> IO ()
 draw m (Resources s vb e ct) win = do
     clear [ColorBuffer]
@@ -87,6 +92,21 @@ draw m (Resources s vb e ct) win = do
     enableVertices' s vb
     bindVertices vb
     setAllUniforms s $ m width height
+    bindBuffer ElementArrayBuffer $= Just e
+    drawIndexedTris ct
+
+-- | The same as `draw` but allows for rendiring into any bound framebuffer.
+-- This should help when you want to render a diagram into a texture to be
+-- used somewhere outside of a diagrams context.
+draw' :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Size -> IO ()
+draw' m (Resources s vb e ct) size@(Size width height) = do
+    clear [ColorBuffer]
+    viewport $= (Position 0 0, size)
+    -- actually set up OpenGL
+    currentProgram $= (Just $ program s)
+    enableVertices' s vb
+    bindVertices vb
+    setAllUniforms s $ m (fromIntegral width) (fromIntegral height)
     bindBuffer ElementArrayBuffer $= Just e
     drawIndexedTris ct
 

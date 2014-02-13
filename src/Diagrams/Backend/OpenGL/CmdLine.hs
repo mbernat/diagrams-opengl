@@ -20,3 +20,5 @@ defaultMain d = do
 
 defaultOptions :: Options OpenGL R2
 defaultOptions = GlOptions (opaque white)
+
+
