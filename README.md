@@ -5,10 +5,12 @@ using the [Haskell programming language][haskell].
 [diagrams]: http://projects.haskell.org/diagrams/
 [haskell]: http://www.haskell.org/haskellwiki/Haskell
 
-# TODO
-- handle arbitrary polygons
-- handle FillColor attribute
-- render Bezier curves correctly
-- email diagrams list about Surface design
-- figure out design for embedding 2D diagrams in 3D (on a plane)
-- move into diagrams organization on github
+Eventually OpenGL should render both 2D and 3D Diagrams.  The 2D works
+now, but there's a fair bit of work making it less buggy.  Right now,
+for 3D, your best bet is
+[the POV-Ray Backend](https://github.com/diagrams/diagrams-povray).
+
+If you want to contribute, there's work to be done both on the OpenGL
+side (writing shaders, translating the 2D Haskell code to 3D) and on
+the library design side (adding 3D primitives and useful functions for
+working with them).
