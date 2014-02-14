@@ -43,7 +43,10 @@ data GlPrim = GlPrim { vertices :: [PlainRec [Coord2d, VColor]]
                      , elements :: [GLuint]
                      }
 
-data Resources = Resources { shaderProgram :: ShaderProgram
+data Resources = Resources {
+                             transform :: Size -> PlainRec '[MVP]
+                           , backgroundColor :: AlphaColour Double
+                           , shaderProgram :: ShaderProgram
                            , buffer :: BufferedVertices [Coord2d, VColor]
                            , elementBuffer :: BufferObject
                            , elementCount :: GLsizei
@@ -67,47 +70,39 @@ v4Color :: (Real a, Floating a, Fractional b) => AlphaColour a -> L.V4 b
 v4Color c = L.V4 r g b a where
   (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
-initResources :: GlPrim -> IO Resources
-initResources ps = do
+initResources :: AlphaColour Double -> (Size -> PlainRec '[MVP]) -> GlPrim -> IO Resources
+initResources bg tr ps = do
     let v = shaderPath </> "util.v.glsl"
         f = shaderPath </> "util.f.glsl"
-    Resources <$> simpleShaderProgram v f
-              <*> bufferVertices (vertices ps)
-              <*> fromSource ElementArrayBuffer (elements ps)
-              <*> (pure . fromIntegral . length . elements $ ps)
+    Resources tr bg <$> simpleShaderProgram v f
+        <*> bufferVertices (vertices ps)
+        <*> fromSource ElementArrayBuffer (elements ps)
+        <*> (pure . fromIntegral . length . elements $ ps)
 
 unknitResources :: Resources -> IO ()
-unknitResources (Resources sp (BufferedVertices vbo) ebo _) = do
+unknitResources (Resources _ _ sp (BufferedVertices vbo) ebo _) = do
     deleteObjectNames [vbo, ebo]
     deleteObjectName $ program sp
 
-draw :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Window -> IO ()
-draw m (Resources s vb e ct) win = do
-    clear [ColorBuffer]
+draw :: Resources -> Window -> IO ()
+draw res win = do
     -- get some state for the transforms
     (width, height) <- getFramebufferSize win
-    viewport $= (Position 0 0, Size (fromIntegral width) (fromIntegral height))
-    -- actually set up OpenGL
-    currentProgram $= (Just $ program s)
-    enableVertices' s vb
-    bindVertices vb
-    setAllUniforms s $ m width height
-    bindBuffer ElementArrayBuffer $= Just e
-    drawIndexedTris ct
+    draw' res (Size (fromIntegral width) (fromIntegral height))
 
--- | The same as `draw` but allows for rendiring into any bound framebuffer.
+-- | The same as `draw` but allows for rendering into any bound framebuffer.
 -- This should help when you want to render a diagram into a texture to be
 -- used somewhere outside of a diagrams context.
-draw' :: (Int -> Int -> PlainRec '[MVP]) -> Resources -> Size -> IO ()
-draw' m (Resources s vb e ct) size@(Size width height) = do
-    clearColor $= Color4 0 0 0 0
+draw' :: Resources -> Size -> IO ()
+draw' (Resources m bg s vb e ct) size = do
+    clearColor $= glColor bg
     clear [ColorBuffer]
     viewport $= (Position 0 0, size)
     -- actually set up OpenGL
     currentProgram $= (Just $ program s)
     enableVertices' s vb
     bindVertices vb
-    setAllUniforms s $ m (fromIntegral width) (fromIntegral height)
+    setAllUniforms s $ m size
     bindBuffer ElementArrayBuffer $= Just e
     drawIndexedTris ct
 

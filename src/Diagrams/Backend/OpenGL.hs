@@ -115,14 +115,13 @@ instance Backend OpenGL R2 where
 --   and subsequent renderings should require very little CPU computation
   doRender _ o (GlRen b p) = do
     -- Boring OpenGL init
-    clearColor $= glColor (bgColor o)
     GL.blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
     -- collect all the prims into GPU buffers
     let ps = evalState p initialGLRenderState
-    resources <- initResources ps
+    resources <- initResources (bgColor o) (inclusiveOrtho b) ps
     -- return an action which will redraw
-    return (draw (inclusiveOrtho b) resources)
+    return $ draw resources
 
 instance Monoid (Render OpenGL R2) where
   mempty = GlRen emptyBox $ return mempty
@@ -144,8 +143,8 @@ dimensions = unr2 . boxExtents . boundingBox
 aspectRatio :: Monoid' m => QDiagram b R2 m -> Double
 aspectRatio = uncurry (/) . dimensions
 
-inclusiveOrtho :: BoundingBox R2 -> Int -> Int -> PlainRec '[MVP]
-inclusiveOrtho b w h = mvp =: L.mkTransformationMat scl trns where
+inclusiveOrtho :: BoundingBox R2 -> Size -> PlainRec '[MVP]
+inclusiveOrtho b (Size w h) = mvp =: L.mkTransformationMat scl trns where
   defaultBounds = (p2 (-1,-1), p2 (1,1))
   (ll, ur) = maybe defaultBounds id $ getCorners b
   trns = p2ToV3 (centroid [ll, ur]) L.^* (-1)
@@ -193,8 +192,8 @@ renderDiagram s b opts d = do
         (GlRen box p) = renderData b d'
     -- collect all the prims into GPU buffers
     let ps = evalState p initialGLRenderState
-    resources <- initResources ps
+    resources <- initResources transparent (inclusiveOrtho box) ps
     -- Draw the diagram into the currently setup and bound context
-    draw' (inclusiveOrtho box) resources s
+    draw' resources s
     unknitResources resources
 
