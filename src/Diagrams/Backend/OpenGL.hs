@@ -6,18 +6,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..) ) where
+module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..), diagramToTexture) where
 
 -- General  Haskell
 import           Control.Monad.State
 import           Data.Typeable
-import qualified Data.Vector.Storable as V
 
 -- Graphics
 import           Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW as GLFW
-import Data.Vinyl
+import           Data.Vinyl
 import qualified Linear as L
+import           Foreign.Ptr
+import           System.Exit
 
 -- From Diagrams
 import           Diagrams.BoundingBox
@@ -152,3 +153,48 @@ inclusiveOrtho b w h = mvp =: L.mkTransformationMat scl trns where
   scl = diagonalMatrix $ aspectScale  / r2ToV3 ext
   aspect = fi w / fi h
   aspectScale = L.V3 (2 / max 1 aspect) (2 / max 1 (1/aspect)) 1
+
+-- | Renders the diagram into a framebuffer texture.
+diagramToTexture :: Size -> Options OpenGL R2 -> Diagram OpenGL R2 -> IO TextureObject
+diagramToTexture s@(Size w h) opts d = do
+    -- Generate a framebuffer object
+    fb <- genObjectName
+    bindFramebuffer Framebuffer $= fb
+    -- Generate a texture to attach to the framebuffer.
+    tex <- genObjectName
+    textureBinding Texture2D $= Just tex
+    textureFilter Texture2D $= ((Linear', Nothing), Linear')
+    texImage2D
+        Texture2D
+        NoProxy
+        0
+        RGBA'
+        (TextureSize2D w h)
+        0
+        (PixelData RGBA UnsignedByte nullPtr)
+    -- Attach!
+    framebufferTexture2D Framebuffer (ColorAttachment 0) Texture2D tex 0
+    -- Check for failure.
+    status <- GL.get $ framebufferStatus Framebuffer
+    unless (status == Complete) $ do
+        print status
+        exitFailure
+
+    renderDiagram s OpenGL opts d
+
+    -- Unbind and cleanup.
+    bindFramebuffer Framebuffer $= defaultFramebufferObject
+    deleteObjectName fb
+    return tex
+
+renderDiagram :: (Semigroup m, Monoid m) => Size -> OpenGL -> Options OpenGL R2 -> QDiagram OpenGL R2 m -> IO ()
+renderDiagram s b opts d = do
+    let (_, d')   = adjustDia b opts d
+        (GlRen box p) = renderData b d'
+    -- collect all the prims into GPU buffers
+    let ps = evalState p initialGLRenderState
+    resources <- initResources ps
+    -- Draw the diagram into the currently setup and bound context
+    draw' (inclusiveOrtho box) resources s
+    unknitResources resources
+

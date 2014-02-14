@@ -6,3 +6,6 @@ dist/
 cabal-dev/
 /.cabal-sandbox
 /cabal.sandbox.config
+*.swp
+*.swo
+**/.DS_Store
