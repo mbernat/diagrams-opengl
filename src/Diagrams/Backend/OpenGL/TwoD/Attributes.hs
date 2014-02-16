@@ -1,7 +1,8 @@
 {-# LANGUAGE ViewPatterns               #-}
 
-module Diagrams.Backend.OpenGL.TwoD.Attributes where
-
+module Diagrams.Backend.OpenGL.TwoD.Attributes
+       ( GLRenderM, GLRenderState (..), changeStyleState )
+       where
 
 -- General  Haskell
 import           Control.Monad.State
@@ -38,6 +39,18 @@ data GLRenderState =
                }
 
 {- Style changes -}
+
+changeStyleState :: Style v -> GLRenderM ()
+changeStyleState s = mapM_ ($ s) [ changeLineColor
+                                 , changeFillColor
+                                 , changeOpacity
+                                 , changeLineWidth
+                                 , changeLineCap
+                                 , changeLineJoin
+                                 , changeFillRule
+                                 , changeDashing
+                                 , changeClip
+                                 ]
 
 changeLineColor :: Style v -> GLRenderM ()
 changeLineColor s =

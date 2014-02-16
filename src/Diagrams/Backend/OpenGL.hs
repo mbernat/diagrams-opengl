@@ -95,20 +95,6 @@ instance Backend OpenGL R2 where
                            }
                          deriving Show
 
-  withStyle _ s _ (GlRen b p) =
-      GlRen b $ do
-        mapM_ ($ s)
-          [ changeLineColor
-          , changeFillColor
-          , changeOpacity
-          , changeLineWidth
-          , changeLineCap
-          , changeLineJoin
-          , changeFillRule
-          , changeDashing
-          , changeClip
-          ]
-        p
 
 --   The OpenGL backend expects doRender to be called in a loop.
 --   Ideally, most of the work would be done on the first rendering,
