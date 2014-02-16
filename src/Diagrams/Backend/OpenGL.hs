@@ -32,23 +32,22 @@ import           Diagrams.Backend.OpenGL.TwoD.Tesselate
 
 renderPath :: Path R2 -> Render OpenGL R2
 renderPath p@(Path trs) =
-  GlRen (boundingBox p) $ do
-    _fc <- gets currentFillColor
-    _lc <- gets currentLineColor
-    _o <- gets currentOpacity
-    _fr <- gets currentFillRule
-    _lw <- gets currentLineWidth
-    _lcap <- gets currentLineCap
-    _lj <- gets currentLineJoin
-    _darr <- gets currentDashArray
-    _clip <- gets currentClip
-    put initialGLRenderState
+  GlRen $ do
+    _fc <- gets _currentFillColor
+    _lc <- gets _currentLineColor
+    _o <- gets _currentOpacity
+    _fr <- gets _currentFillRule
+    _lw <- gets _currentLineWidth
+    _lcap <- gets _currentLineCap
+    _lj <- gets _currentLineJoin
+    _dash <- gets _currentDashArray
+    _clip <- gets _currentClip
     let
         trails                  = map trlVertices trs
         simplePolygons          = tessRegion _fr trails
 
         linePolygons :: [Convex]
-        linePolygons = concatMap (calcLines _darr _lw _lcap _lj) trails
+        linePolygons = concatMap (calcLines _dash _lw _lcap _lj) trails
 
         clippedPolygons :: [Convex] -> [Convex]
         clippedPolygons vis
@@ -73,19 +72,6 @@ flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 
 data OpenGL = OpenGL
             deriving (Show, Typeable)
-
-initialGLRenderState :: GLRenderState
-initialGLRenderState = GLRenderState
-                            (opaque black)
-                            transparent
-                            1
-                            0.01
-                            LineCapButt
-                            LineJoinMiter
-                            TessWindingNonzero
-                            []
-                            0
-                            []
 
 instance Backend OpenGL R2 where
   data Render OpenGL R2 = GlRen (BoundingBox R2) (GLRenderM GlPrim)

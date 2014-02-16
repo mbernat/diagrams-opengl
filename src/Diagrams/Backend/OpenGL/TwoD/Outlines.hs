@@ -18,21 +18,23 @@ import           Graphics.Rendering.Util
 newtype Convex = Convex { unConvex :: [P2] }
 
 -- | calcLines is (nearly) the sole entry point for this module
-calcLines :: [Double]  -- ^ Dashing pattern, first element of Dashing type
+calcLines :: Dashing
              -> Double -- ^ Line Width
              -> LineCap
              -> LineJoin
              -> [P2]  -- ^ Points from a single Trail, with curves already linearized
              -> [Convex] -- ^ Each inner list is the outline of a (convex) polygon
-calcLines darr lwf lcap lj ps@(_:_:_) =
-  case darr of
-    []    -> map (calcLine lwf) strokedLines <>
+calcLines dash lwf lcap lj ps@(_:_:_) =
+  case dash of
+    (Dashing [] _)
+        -> map (calcLine lwf) strokedLines <>
              map (calcJoin lj lwf) joins
-    _     -> calcDashedLines (cycle darr) False lwf lcap lj strokedLines
-             <> if dist < 0.0001
-                then [calcJoin lj lwf (pup, fp, sp)]
-                else [calcCap lwf lcap $ swap $ head strokedLines] <>
-                     [calcCap lwf lcap $ last strokedLines]
+    (Dashing darr _)
+        -> calcDashedLines (cycle darr) False lwf lcap lj strokedLines
+           <> if dist < 0.0001
+              then [calcJoin lj lwf (pup, fp, sp)]
+              else [calcCap lwf lcap $ swap $ head strokedLines] <>
+                   [calcCap lwf lcap $ last strokedLines]
  where strokedLines = zip  ps (tail ps)
        joins = zip3 ps (tail ps) (tail $ tail ps)
        pup   = ps !! (length ps - 2)
