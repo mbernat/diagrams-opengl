@@ -55,18 +55,18 @@ changeStyleState s = mapM_ ($ s) [ changeLineColor
 changeLineColor :: Style v -> GLRenderM ()
 changeLineColor s =
   case lcol of
-    Just (r, g, b, a) ->
-      modify $ \st -> st{currentLineColor = withOpacity (sRGB r g b) a}
+    Just c ->
+      modify $ \st -> st{currentLineColor = c}
     Nothing           -> return ()
- where lcol = colorToSRGBA <$> getLineColor <$> getAttr s
+ where lcol = toAlphaColour <$> getLineColor <$> getAttr s
 
 changeFillColor :: Style v -> GLRenderM ()
 changeFillColor s =
   case fcol of
-    Just (r, g, b, a) ->
-      modify $ \st -> st{currentFillColor = withOpacity (sRGB r g b) a}
+    Just c ->
+      modify $ \st -> st{currentFillColor = c)
     Nothing           -> return ()
- where fcol = colorToSRGBA <$> getFillColor <$> getAttr s
+ where fcol = toAlphaColour <$> getFillColor <$> getAttr s
 
 changeOpacity :: Style v -> GLRenderM ()
 changeOpacity s =
