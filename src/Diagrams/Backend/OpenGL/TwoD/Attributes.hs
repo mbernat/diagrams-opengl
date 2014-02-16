@@ -1,17 +1,15 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE RankNTypes                 #-}
 
 module Diagrams.Backend.OpenGL.TwoD.Attributes
-       ( GLRenderM, GLRenderState (..), withStyleState )
+       ( GLRenderM, GLRenderState (..), withStyleState , initialGLRenderState)
        where
 
 -- General  Haskell
 import           Control.Monad.State
-import           Control.Lens (op, Lens', (.~)
+import           Control.Lens (op, Lens', (.~))
 import           Control.Lens.TH
-
--- Graphics
-import           Data.Colour.SRGB as C
 
 -- From Diagrams
 import           Diagrams.Prelude as D hiding (Attribute)
@@ -52,26 +50,28 @@ initialGLRenderState =   GLRenderState
 {- Style changes -}
 
 withStyleState :: Style R2 -> GLRenderM a -> GLRenderM a
-withStyleState s = do
+withStyleState s act = do
     prev <- get
-    modify . foldr (.) . map ($s) $
+    modify . foldr1 (.) . map ($ s) $
         [ changeWith (toAlphaColour . getLineColor) currentLineColor
         , changeWith (toAlphaColour . getFillColor) currentFillColor
         , changeWith getOpacity currentOpacity
         , changeWith getLineWidth currentLineWidth
         , changeWith getLineCap currentLineCap
         , changeWith getLineJoin currentLineJoin
-        , changeWith getFillRule currentFillRule
+        , changeWith (fr . getFillRule) currentFillRule
         , changeWith getDashing currentDashing
         , changeClip
         ]
-    set prev  -- TODO restore only changed values?
+    r <- act
+    put prev  -- TODO restore only changed values?
+    return r
 
 -- | @changeWith get set sty@ is @id@ if @sty@ does not have the
 -- 'Attribute' specified by @get@.  If the @Attribute@ is available,
 -- @changeWith@ returns a function which sets it.
 changeWith :: AttributeClass a =>
-              (a -> b) -> (Lens' b GLRenderState) -> Style R2 -> GLRenderState -> GLRenderState
+              (a -> b) -> (Lens' GLRenderState b) -> Style R2 -> GLRenderState -> GLRenderState
 changeWith g s sty = case g <$> getAttr sty of
     Just v -> s .~ v
     Nothing -> id
@@ -79,5 +79,9 @@ changeWith g s sty = case g <$> getAttr sty of
 changeClip :: Style R2 -> GLRenderState -> GLRenderState
 changeClip s = case op Clip <$> getAttr s of
     Just (Path trs:_) ->
-        currentClip .~ tessRegion TessWindingNonzero $ map trlVertices trs
+        currentClip .~ (tessRegion TessWindingNonzero $ map trlVertices trs)
     _ -> id
+
+fr :: FillRule -> TessWinding
+fr Winding = TessWindingNonzero
+fr EvenOdd = TessWindingOdd

@@ -44,7 +44,7 @@ data GlPrim = GlPrim { vertices :: [PlainRec [Coord2d, VColor]]
                      }
 
 data Resources = Resources {
-                             transform :: Size -> PlainRec '[MVP]
+                             viewTransform :: Size -> PlainRec '[MVP]
                            , backgroundColor :: AlphaColour Double
                            , shaderProgram :: ShaderProgram
                            , buffer :: BufferedVertices [Coord2d, VColor]

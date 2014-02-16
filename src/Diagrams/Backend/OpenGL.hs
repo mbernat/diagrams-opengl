@@ -10,6 +10,8 @@ module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..), diagramToT
 
 -- General  Haskell
 import           Control.Monad.State
+import           Data.Foldable (foldMap)
+import Data.Tree
 import           Data.Typeable
 
 -- Graphics
@@ -23,6 +25,7 @@ import           System.Exit
 -- From Diagrams
 import           Diagrams.BoundingBox
 import           Diagrams.Prelude as D hiding (Attribute)
+import           Diagrams.Core.Compile
 
 -- In this package
 import           Graphics.Rendering.Util
@@ -40,7 +43,7 @@ renderPath p@(Path trs) =
     _lw <- gets _currentLineWidth
     _lcap <- gets _currentLineCap
     _lj <- gets _currentLineJoin
-    _dash <- gets _currentDashArray
+    _dash <- gets _currentDashing
     _clip <- gets _currentClip
     let
         trails                  = map trlVertices trs
@@ -73,32 +76,43 @@ flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 data OpenGL = OpenGL
             deriving (Show, Typeable)
 
+renderRTree :: RTree OpenGL R2 a -> Render OpenGL R2
+renderRTree (Node (RPrim accTr p) _) = render OpenGL $ transform accTr p
+renderRTree (Node (RStyle sty) ts) = GlRen $ do
+    let (GlRen sm) = foldMap renderRTree ts
+    withStyleState sty sm
+renderRTree (Node _ ts) = foldMap renderRTree ts
+
 instance Backend OpenGL R2 where
-  data Render OpenGL R2 = GlRen (BoundingBox R2) (GLRenderM GlPrim)
+  data Render OpenGL R2 = GlRen (GLRenderM GlPrim)
   type Result OpenGL R2 = IO (GLFW.Window -> IO ())
   data Options OpenGL R2 = GlOptions
                            { bgColor :: AlphaColour Double -- ^ The clear color for the window
+                           , globalSize :: BoundingBox R2  -- ^ Size of the Diagram
                            }
                          deriving Show
 
+  renderData _ d = renderRTree . toRTree $ d
 
+  -- The backend stores the size of the Diagram in the options record
+  adjustDia _ o d = (o { globalSize = boundingBox d }, d)
+  
 --   The OpenGL backend expects doRender to be called in a loop.
---   Ideally, most of the work would be done on the first rendering,
---   and subsequent renderings should require very little CPU computation
-  doRender _ o (GlRen b p) = do
+-- initResources loads all the data to the GPU
+-- and draw is an IO action which redraws the screen
+  doRender _ o (GlRen p) = do
     -- Boring OpenGL init
     GL.blend $= Enabled
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
     -- collect all the prims into GPU buffers
     let ps = evalState p initialGLRenderState
-    resources <- initResources (bgColor o) (inclusiveOrtho b) ps
+    resources <- initResources (bgColor o) (inclusiveOrtho (globalSize o)) ps
     -- return an action which will redraw
     return $ draw resources
 
 instance Monoid (Render OpenGL R2) where
-  mempty = GlRen emptyBox $ return mempty
-  (GlRen b1 p01) `mappend` (GlRen b2 p02) =
-    GlRen (b1 <> b2) $ liftA2 (<>) p01 p02
+  mempty = GlRen $ return mempty
+  (GlRen p01) `mappend` (GlRen p02) = GlRen $ liftA2 (<>) p01 p02
 
 instance Renderable (Path R2) OpenGL where
   render _ = renderPath
@@ -109,11 +123,8 @@ instance Renderable (Trail R2) OpenGL where
 instance Renderable (Segment Closed R2) OpenGL where
   render c = render c . trailFromSegments . (:[])
 
-dimensions :: Monoid' m => QDiagram b R2 m -> (Double, Double)
-dimensions = unr2 . boxExtents . boundingBox
-
 aspectRatio :: Monoid' m => QDiagram b R2 m -> Double
-aspectRatio = uncurry (/) . dimensions
+aspectRatio = uncurry (/) . size2D
 
 inclusiveOrtho :: BoundingBox R2 -> Size -> PlainRec '[MVP]
 inclusiveOrtho b (Size w h) = mvp =: L.mkTransformationMat scl trns where
@@ -160,11 +171,11 @@ diagramToTexture s@(Size w h) opts d = do
 
 renderDiagram :: (Semigroup m, Monoid m) => Size -> OpenGL -> Options OpenGL R2 -> QDiagram OpenGL R2 m -> IO ()
 renderDiagram s b opts d = do
-    let (_, d')   = adjustDia b opts d
-        (GlRen box p) = renderData b d'
+    let (o, d')   = adjustDia b opts d
+        (GlRen p) = renderData b d'
     -- collect all the prims into GPU buffers
     let ps = evalState p initialGLRenderState
-    resources <- initResources transparent (inclusiveOrtho box) ps
+    resources <- initResources transparent (inclusiveOrtho (globalSize o)) ps
     -- Draw the diagram into the currently setup and bound context
     draw' resources s
     unknitResources resources

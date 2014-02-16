@@ -19,6 +19,6 @@ defaultMain d = do
   cleanup win
 
 defaultOptions :: Options OpenGL R2
-defaultOptions = GlOptions (opaque white)
+defaultOptions = GlOptions (opaque white) mempty
 
 
