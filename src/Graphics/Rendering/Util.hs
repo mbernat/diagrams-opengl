@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Graphics.Rendering.Util where
 
--- Wrap OpenGL calls in a slightly more declarative syntax
--- TODO more consistent naming
-
+import qualified Data.ByteString as BS
 import Data.Colour
+import           Data.FileEmbed (embedFile)
 import           System.FilePath ((</>))
 
 import Diagrams.Attributes
@@ -70,11 +70,16 @@ v4Color :: (Real a, Floating a, Fractional b) => AlphaColour a -> L.V4 b
 v4Color c = L.V4 r g b a where
   (r,g,b,a) = r2fQuad $ colorToSRGBA c
 
+
+vSrc, fSrc :: BS.ByteString
+-- TH arguments need to be literal strings, or defined in another module
+-- In real code, the latter would be better to avoid platform-dependent '/'
+vSrc = $(embedFile $ "src/Graphics/Rendering/util.v.glsl")
+fSrc = $(embedFile $ "src/Graphics/Rendering/util.f.glsl")
+
 initResources :: AlphaColour Double -> (Size -> PlainRec '[MVP]) -> GlPrim -> IO Resources
 initResources bg tr ps = do
-    let v = shaderPath </> "util.v.glsl"
-        f = shaderPath </> "util.f.glsl"
-    Resources tr bg <$> simpleShaderProgram v f
+    Resources tr bg <$> simpleShaderProgramBS vSrc fSrc
         <*> bufferVertices (vertices ps)
         <*> fromSource ElementArrayBuffer (elements ps)
         <*> (pure . fromIntegral . length . elements $ ps)
