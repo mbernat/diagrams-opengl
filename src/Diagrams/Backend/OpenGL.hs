@@ -46,9 +46,12 @@ renderPath p@(Path trs) =
     _dash <- gets _currentDashing
     _clip <- gets _currentClip
     let
+        -- trail to vertices
         trails                  = map trlVertices trs
+        -- pick convex polygons for the fill
         simplePolygons          = tessRegion _fr trails
 
+        -- convex polygons for the line
         linePolygons :: [Convex]
         linePolygons = concatMap (calcLines _dash _lw _lcap _lj) trails
 

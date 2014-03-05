@@ -24,6 +24,7 @@ calcLines :: Dashing
              -> LineJoin
              -> [P2]  -- ^ Points from a single Trail, with curves already linearized
              -> [Convex] -- ^ Each inner list is the outline of a (convex) polygon
+calcLines _ 0 _ _ _ = []
 calcLines dash lwf lcap lj ps@(_:_:_) =
   case dash of
     (Dashing [] _)
@@ -141,6 +142,9 @@ calcLine lwf (p0, p1) = Convex
        norm  = normalized vec ^* (lwf/2)
        c = D.rotate (-tau/4 @@ rad) norm
 
+-- | trlVertices converts a Trail to a list of vertices, approximating
+-- cubic segments in the process.  Mostly handles boundary cases.
+-- @segVertices@ does the real work for each segment.
 trlVertices :: Located (Trail R2) -> [P2]
 trlVertices lt@(viewLoc -> (p0, t)) =
   vertices <> if isLoop t && (magnitude (p0 .-. lp) > 0.0001)
@@ -150,6 +154,9 @@ trlVertices lt@(viewLoc -> (p0, t)) =
                    (trailVertices lt) (trailSegments t ++ [straight (0 ^& 0)])
         lp = last $ trailVertices lt
 
+-- TODO do something adaptive instead of hardcoded 30 points per Cubic
+
+-- | Add one point for Linear segments, or 30 for Cubic segments
 segVertices :: P2 -> Segment Closed R2 -> [P2]
 segVertices p (D.Linear _) = [p]
 segVertices p cubic = map ((p .+^) . atParam cubic) [0,i..1-i] where
