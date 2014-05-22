@@ -12,7 +12,7 @@ Stability:           Experimental
 Category:            Graphics
 Build-type:          Simple
 Cabal-version:       >=1.10
-Tested-with:         GHC == 7.4.1
+Tested-with:         GHC == 7.6.3, GHC == 7.8.2
 Description:         This package provides a modular backend for rendering
                      diagrams created with the diagrams EDSL to screen.
                      It uses @OpenGL@ to call the platform-independant graphics
@@ -50,18 +50,18 @@ Library
                      , containers    >= 0.4   && < 0.6
                      , diagrams-core >= 1.0   && < 1.2
                      , diagrams-lib  >= 1.0   && < 1.2
-                     , lens          >= 3.9   && < 4.1
+                     , lens          >= 4.0   && < 4.2
                      , monoid-extras >= 0.3   && < 0.4
                      , mtl           >= 1     && < 2.2
-                     , semigroups    >= 0.3.4 && < 0.13
+                     , semigroups    >= 0.3.4 && < 0.15
                      , vector        >= 0.10  && < 0.11
                      , vector-space  >= 0.7   && < 0.9
                      , GLUtil >= 0.7.4 && < 0.8
                      , GLFW-b >= 1.0 && < 2.0
                      , filepath >= 1.3 && < 1.4
-                     , linear >= 1.3 && < 1.7
+                     , linear >= 1.3 && < 1.11
                      , vinyl-gl >= 0.1 && < 0.2
-                     , vinyl >= 0.2 && < 0.3
+                     , vinyl >= 0.2 && < 0.4
                      , bytestring >= 0.10 && < 0.11
                      , file-embed < 0.1
   if !os(windows)
