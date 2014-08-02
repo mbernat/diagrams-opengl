@@ -1,3 +1,5 @@
+_diagrams-opengl_ is unmaintained.  Do as you like with the code.
+
 _diagrams-opengl_ is a very immature backend for [diagrams].  Diagrams is a powerful,
 flexible, declarative domain-specific language for creating vector graphics,
 using the [Haskell programming language][haskell].
