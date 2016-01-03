@@ -1,4 +1,5 @@
-_diagrams-opengl_ is unmaintained.  Do as you like with the code.
+I am not maintaining this project.  If you would like to adopt it,
+please drop me a line, and I'll hand it over.
 
 _diagrams-opengl_ is a very immature backend for [diagrams].  Diagrams is a powerful,
 flexible, declarative domain-specific language for creating vector graphics,
