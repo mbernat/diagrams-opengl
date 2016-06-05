@@ -1,5 +1,6 @@
-I am not maintaining this project.  If you would like to adopt it,
-please drop me a line, and I'll hand it over.
+This project is (starting to be) maintained again.
+The master branch is rather outdated (and will stay that way for the time being).
+The work of bringing this project up-to-date with current libs can be found at the `update-to-2016-deps` branch.
 
 _diagrams-opengl_ is a very immature backend for [diagrams].  Diagrams is a powerful,
 flexible, declarative domain-specific language for creating vector graphics,
