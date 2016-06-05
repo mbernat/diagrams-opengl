@@ -8,12 +8,12 @@ module Diagrams.Backend.OpenGL.TwoD.Attributes
 
 -- General  Haskell
 import           Control.Monad.State
+import           Control.Lens (op, Lens', (.~))
 import           Control.Lens.TH
 
 -- From Diagrams
 import           Diagrams.Prelude as D hiding (Attribute)
 import           Diagrams.TwoD.Path
-import Diagrams.TwoD.Attributes
 
 import Diagrams.Backend.OpenGL.TwoD.Outlines (trlVertices, Convex(..))
 import Diagrams.Backend.OpenGL.TwoD.Tesselate
@@ -28,7 +28,7 @@ data GLRenderState =
                , _currentLineCap    :: LineCap
                , _currentLineJoin   :: LineJoin
                , _currentFillRule   :: TessWinding
-               , _currentDashing    :: Dashing Double
+               , _currentDashing    :: Dashing
                , _currentClip       :: [Convex]
                }
 
@@ -49,24 +49,18 @@ initialGLRenderState =   GLRenderState
 
 {- Style changes -}
 
-changeFT :: FillTexture Double -> Maybe (AlphaColour Double)
-changeFT = (^? _AC) . getFillTexture
-
-changeLT :: LineTexture Double -> Maybe (AlphaColour Double)
-changeLT = (^? _AC) . getLineTexture
-
-withStyleState :: Style V2 Double -> GLRenderM a -> GLRenderM a
+withStyleState :: Style R2 -> GLRenderM a -> GLRenderM a
 withStyleState s act = do
     prev <- get
     modify . foldr1 (.) . map ($ s) $
-        [ changeWith changeLT currentLineColor
-        , changeWith changeFT currentFillColor
-        , changeWith (pure . getOpacity) currentOpacity
-        , changeWith (pure . getLineWidth) currentLineWidth
-        , changeWith (pure . getLineCap) currentLineCap
-        , changeWith (pure . getLineJoin) currentLineJoin
-        , changeWith (pure . fr . getFillRule) currentFillRule
-        , changeWith (pure . getDashing) currentDashing
+        [ changeWith (toAlphaColour . getLineColor) currentLineColor
+        , changeWith (toAlphaColour . getFillColor) currentFillColor
+        , changeWith getOpacity currentOpacity
+        , changeWith getLineWidth currentLineWidth
+        , changeWith getLineCap currentLineCap
+        , changeWith getLineJoin currentLineJoin
+        , changeWith (fr . getFillRule) currentFillRule
+        , changeWith getDashing currentDashing
         , changeClip
         ]
     r <- act
@@ -77,12 +71,12 @@ withStyleState s act = do
 -- 'Attribute' specified by @get@.  If the @Attribute@ is available,
 -- @changeWith@ returns a function which sets it.
 changeWith :: AttributeClass a =>
-              (a -> Maybe b) -> (Lens' GLRenderState b) -> Style V2 Double -> GLRenderState -> GLRenderState
-changeWith g s sty = case getAttr sty >>= g of
+              (a -> b) -> (Lens' GLRenderState b) -> Style R2 -> GLRenderState -> GLRenderState
+changeWith g s sty = case g <$> getAttr sty of
     Just v -> s .~ v
     Nothing -> id
 
-changeClip :: Style V2 Double -> GLRenderState -> GLRenderState
+changeClip :: Style R2 -> GLRenderState -> GLRenderState
 changeClip s = case op Clip <$> getAttr s of
     Just (Path trs:_) ->
         currentClip .~ (tessRegion TessWindingNonzero $ map trlVertices trs)

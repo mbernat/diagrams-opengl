@@ -9,7 +9,7 @@ import Graphics.Rendering.OpenGL
 import Diagrams.Backend.OpenGL.TwoD.Outlines (Convex(..))
 import Graphics.Rendering.Util
 
-tessRegion :: TessWinding -> [[P2 Double]] -> [Convex]
+tessRegion :: TessWinding -> [[P2]] -> [Convex]
 tessRegion fr trs = map Convex . renderTriangulation . unsafePerformIO $
   triangulate fr 0.0001 (Normal3 0 0 0)
     (\_ _ -> 0) $
