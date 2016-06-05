@@ -33,7 +33,7 @@ import           Diagrams.Backend.OpenGL.TwoD.Attributes
 import           Diagrams.Backend.OpenGL.TwoD.Outlines
 import           Diagrams.Backend.OpenGL.TwoD.Tesselate
 
-renderPath :: Path R2 -> Render OpenGL R2
+renderPath :: Path V2 Double -> Render OpenGL V2 Double
 renderPath p@(Path trs) =
   GlRen $ do
     _fc <- gets _currentFillColor
@@ -73,33 +73,34 @@ renderPolygon c (Convex ps) = GlPrim (zipRecs vertices colors) elements
     lastElement = fromIntegral (length vertices) - 2
     elements = concat [[0, i, i+1] | i <- [1..lastElement]]
 
-flatP2 :: (Fractional a, Num a) => P2 -> [a]
+flatP2 :: (Fractional a, Num a) => P2 Double -> [a]
 flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
 
 data OpenGL = OpenGL
             deriving (Show, Typeable)
 
-renderRTree :: RTree OpenGL R2 a -> Render OpenGL R2
-renderRTree (Node (RPrim accTr p) _) = render OpenGL $ transform accTr p
-renderRTree (Node (RStyle sty) ts) = GlRen $ do
+renderRTree' :: RTree OpenGL V2 Double a -> Render OpenGL V2 Double
+renderRTree' (Node (RPrim accTr p) _) = render OpenGL $ transform accTr p
+renderRTree' (Node (RStyle sty) ts) = GlRen $ do
     let (GlRen sm) = foldMap renderRTree ts
     withStyleState sty sm
-renderRTree (Node _ ts) = foldMap renderRTree ts
+renderRTree' (Node _ ts) = foldMap renderRTree ts
 
-instance Backend OpenGL R2 where
-  data Render OpenGL R2 = GlRen (GLRenderM GlPrim)
-  type Result OpenGL R2 = IO (GLFW.Window -> IO ())
-  data Options OpenGL R2 = GlOptions
+instance Backend OpenGL V2 Double where
+  data Render OpenGL V2 Double = GlRen (GLRenderM GlPrim)
+  type Result OpenGL V2 Double = IO (GLFW.Window -> IO ())
+  data Options OpenGL V2 Double = GlOptions
                            { bgColor :: AlphaColour Double -- ^ The clear color for the window
-                           , globalSize :: BoundingBox R2  -- ^ Size of the Diagram
+                           , globalSize :: BoundingBox V2 Double  -- ^ Size of the Diagram
                            }
                          deriving Show
 
-  renderData _ d = renderRTree . toRTree $ d
+  renderRTree = renderRTree'
 
   -- The backend stores the size of the Diagram in the options record
   adjustDia _ o d = (o { globalSize = boundingBox d }, d)
-  
+
+{-  
 --   The OpenGL backend expects doRender to be called in a loop.
 -- initResources loads all the data to the GPU
 -- and draw is an IO action which redraws the screen
@@ -112,24 +113,27 @@ instance Backend OpenGL R2 where
     resources <- initResources (bgColor o) (inclusiveOrtho (globalSize o)) ps
     -- return an action which will redraw
     return $ draw resources
+-}
 
-instance Monoid (Render OpenGL R2) where
+instance Monoid (Render OpenGL V2 Double) where
   mempty = GlRen $ return mempty
   (GlRen p01) `mappend` (GlRen p02) = GlRen $ liftA2 (<>) p01 p02
 
-instance Renderable (Path R2) OpenGL where
+instance Renderable (Path V2 Double) OpenGL where
   render _ = renderPath
 
-instance Renderable (Trail R2) OpenGL where
+instance Renderable (Trail V2 Double) OpenGL where
   render c t = render c $ Path [(t `at` origin)]
 
-instance Renderable (Segment Closed R2) OpenGL where
+instance Renderable (Segment Closed V2 Double) OpenGL where
   render c = render c . trailFromSegments . (:[])
 
-aspectRatio :: Monoid' m => QDiagram b R2 m -> Double
-aspectRatio = uncurry (/) . size2D
+aspectRatio :: Monoid' m => QDiagram b V2 Double m -> Double
+aspectRatio = const 1
+-- TODO
+--aspectRatio = uncurry (/) . size2D
 
-inclusiveOrtho :: BoundingBox R2 -> Size -> PlainRec '[MVP]
+inclusiveOrtho :: BoundingBox V2 Double -> Size -> FieldRec '[MVP]
 inclusiveOrtho b (Size w h) = mvp =: L.mkTransformationMat scl trns where
   defaultBounds = (p2 (-1,-1), p2 (1,1))
   (ll, ur) = maybe defaultBounds id $ getCorners b
@@ -140,7 +144,7 @@ inclusiveOrtho b (Size w h) = mvp =: L.mkTransformationMat scl trns where
   aspectScale = L.V3 (2 / max 1 aspect) (2 / max 1 (1/aspect)) 1
 
 -- | Renders the diagram into a framebuffer texture.
-diagramToTexture :: Size -> Options OpenGL R2 -> Diagram OpenGL R2 -> IO TextureObject
+diagramToTexture :: Size -> Options OpenGL V2 Double -> QDiagram OpenGL V2 Double Any -> IO TextureObject
 diagramToTexture s@(Size w h) opts d = do
     -- Generate a framebuffer object
     fb <- genObjectName
@@ -172,7 +176,7 @@ diagramToTexture s@(Size w h) opts d = do
     deleteObjectName fb
     return tex
 
-renderDiagram :: (Semigroup m, Monoid m) => Size -> OpenGL -> Options OpenGL R2 -> QDiagram OpenGL R2 m -> IO ()
+renderDiagram :: (Semigroup m, Monoid m) => Size -> OpenGL -> Options OpenGL V2 Double -> QDiagram OpenGL V2 Double m -> IO ()
 renderDiagram s b opts d = do
     let (o, d')   = adjustDia b opts d
         (GlRen p) = renderData b d'
@@ -182,4 +186,5 @@ renderDiagram s b opts d = do
     -- Draw the diagram into the currently setup and bound context
     draw' resources s
     unknitResources resources
-
+  where
+    renderData _ = renderRTree . toRTree
