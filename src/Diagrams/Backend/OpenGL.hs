@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -10,8 +11,7 @@ module Diagrams.Backend.OpenGL (aspectRatio, OpenGL(..), Options(..), diagramToT
 
 -- General  Haskell
 import           Control.Monad.State
-import           Data.Foldable (foldMap)
-import Data.Tree
+import           Data.Tree
 import           Data.Typeable
 
 -- Graphics
@@ -34,7 +34,7 @@ import           Diagrams.Backend.OpenGL.TwoD.Outlines
 import           Diagrams.Backend.OpenGL.TwoD.Tesselate
 
 renderPath :: Path V2 Double -> Render OpenGL V2 Double
-renderPath p@(Path trs) =
+renderPath (Path trs) =
   GlRen $ do
     _fc <- gets _currentFillColor
     _lc <- gets _currentLineColor
@@ -66,25 +66,22 @@ renderPath p@(Path trs) =
        map (renderPolygon $ dissolve _o _lc) (clippedPolygons linePolygons)
 
 renderPolygon :: AlphaColour Double -> Convex -> GlPrim
-renderPolygon c (Convex ps) = GlPrim (zipRecs vertices colors) elements
+renderPolygon c (Convex ps) = GlPrim (zipRecs vertices' colors) elements'
   where
-    vertices = map (coord2d =:) . map p2ToV2 $ ps
+    vertices' = map (coord2d =:) . map p2ToV2 $ ps
     colors = repeat $ vColor =: (v4Color c)
-    lastElement = fromIntegral (length vertices) - 2
-    elements = concat [[0, i, i+1] | i <- [1..lastElement]]
-
-flatP2 :: (Fractional a, Num a) => P2 Double -> [a]
-flatP2 (unp2 -> (x,y)) = [r2f x, r2f y]
+    lastElement = fromIntegral (length vertices') - 2
+    elements' = concat [[0, i, i+1] | i <- [1..lastElement]]
 
 data OpenGL = OpenGL
             deriving (Show, Typeable)
 
 renderRTree' :: RTree OpenGL V2 Double a -> Render OpenGL V2 Double
-renderRTree' (Node (RPrim accTr p) _) = render OpenGL $ transform accTr p
+renderRTree' (Node (RPrim (Prim p)) _) = render OpenGL p
 renderRTree' (Node (RStyle sty) ts) = GlRen $ do
-    let (GlRen sm) = foldMap renderRTree ts
+    let (GlRen sm) = foldMap renderRTree' ts
     withStyleState sty sm
-renderRTree' (Node _ ts) = foldMap renderRTree ts
+renderRTree' (Node _ ts) = foldMap renderRTree' ts
 
 instance Backend OpenGL V2 Double where
   data Render OpenGL V2 Double = GlRen (GLRenderM GlPrim)
@@ -95,25 +92,26 @@ instance Backend OpenGL V2 Double where
                            }
                          deriving Show
 
-  renderRTree = renderRTree'
+  -- TODO handle the second argument -- options
+  renderRTree _ options = doRender options . renderRTree'
+    where
+      --   The OpenGL backend expects doRender to be called in a loop.
+      -- initResources loads all the data to the GPU
+      -- and draw is an IO action which redraws the screen
+      doRender :: Options OpenGL V2 Double -> Render OpenGL V2 Double -> Result OpenGL V2 Double 
+      doRender o (GlRen p) = do
+        -- Boring OpenGL init
+        GL.blend $= Enabled
+        blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
+        -- collect all the prims into GPU buffers
+        let ps = evalState p initialGLRenderState
+        resources <- initResources (bgColor o) (inclusiveOrtho (globalSize o)) ps
+        -- return an action which will redraw
+        return $ draw resources
 
+      
   -- The backend stores the size of the Diagram in the options record
-  adjustDia _ o d = (o { globalSize = boundingBox d }, d)
-
-{-  
---   The OpenGL backend expects doRender to be called in a loop.
--- initResources loads all the data to the GPU
--- and draw is an IO action which redraws the screen
-  doRender _ o (GlRen p) = do
-    -- Boring OpenGL init
-    GL.blend $= Enabled
-    blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    -- collect all the prims into GPU buffers
-    let ps = evalState p initialGLRenderState
-    resources <- initResources (bgColor o) (inclusiveOrtho (globalSize o)) ps
-    -- return an action which will redraw
-    return $ draw resources
--}
+  adjustDia _ o d = (o { globalSize = boundingBox d }, scaling 1, d)
 
 instance Monoid (Render OpenGL V2 Double) where
   mempty = GlRen $ return mempty
@@ -140,8 +138,8 @@ inclusiveOrtho b (Size w h) = mvp =: L.mkTransformationMat scl trns where
   trns = p2ToV3 (centroid [ll, ur]) L.^* (-1)
   ext = ur .-. ll
   scl = diagonalMatrix $ aspectScale  / r2ToV3 ext
-  aspect = fi w / fi h
-  aspectScale = L.V3 (2 / max 1 aspect) (2 / max 1 (1/aspect)) 1
+  aspect' = fi w / fi h
+  aspectScale = L.V3 (2 / max 1 aspect') (2 / max 1 (1/aspect')) 1
 
 -- | Renders the diagram into a framebuffer texture.
 diagramToTexture :: Size -> Options OpenGL V2 Double -> QDiagram OpenGL V2 Double Any -> IO TextureObject
@@ -178,13 +176,11 @@ diagramToTexture s@(Size w h) opts d = do
 
 renderDiagram :: (Semigroup m, Monoid m) => Size -> OpenGL -> Options OpenGL V2 Double -> QDiagram OpenGL V2 Double m -> IO ()
 renderDiagram s b opts d = do
-    let (o, d')   = adjustDia b opts d
-        (GlRen p) = renderData b d'
+    let (o, t, d')   = adjustDia b opts d
+        (GlRen p) = renderRTree' $ toRTree t d'
     -- collect all the prims into GPU buffers
     let ps = evalState p initialGLRenderState
     resources <- initResources transparent (inclusiveOrtho (globalSize o)) ps
     -- Draw the diagram into the currently setup and bound context
     draw' resources s
     unknitResources resources
-  where
-    renderData _ = renderRTree . toRTree

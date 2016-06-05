@@ -124,13 +124,13 @@ r2fQuad (a,b,c,d) = (r2f a, r2f b, r2f c, r2f d)
 shaderPath :: FilePath
 shaderPath = "src/Graphics/Rendering/"
 
-p2ToV2 :: P2 Double -> L.V2 GLfloat
+p2ToV2 :: Real a => P2 a -> L.V2 GLfloat
 p2ToV2 (unp2 -> (x, y)) = L.V2 (r2f x) (r2f y)
 
-r2ToV3 :: V2 GLfloat -> L.V3 GLfloat
+r2ToV3 :: Real a => V2 a -> L.V3 GLfloat
 r2ToV3 (unr2 -> (x, y)) = L.V3 (r2f x) (r2f y) 0
 
-p2ToV3 :: P2 GLfloat -> L.V3 GLfloat
+p2ToV3 :: Real a => P2 a -> L.V3 GLfloat
 p2ToV3 (unp2 -> (x, y)) = L.V3 (r2f x) (r2f y) 0
 
 diagonalMatrix :: Real r => L.V3 r -> L.M33 GLfloat
